@@ -102,6 +102,37 @@ norms = load_norms()
 print(f"Rows loaded: {len(norms)}")
 print(norms[0])
 
+age = int(input("Enter age: "))
+sex = input("Enter sex (male/female): ")
+print(age, sex)
+  
+
+def find_norm_row(norms, age, sex):
+    best_row = None     
+    best_gap = 999       
+
+    for row in norms:
+        if row["sex"] != sex:     
+            continue
+        gap = abs(row["age"] - age)
+        if gap < best_gap:         
+            best_gap = gap        
+            best_row = row
+    return best_row
+
+def percentile_band(force, row):
+    if force < row["p10"]:
+        return "below 10th percentile"
+    elif force < row["p25"]:
+        return "10th-25th percentile"
+    elif force < row["p50"]:
+        return "25th-50th percentile"
+    elif force < row["p75"]:
+        return "50th-75th percentile"
+    elif force < row["p90"]:
+        return "75th-90th percentile"
+    else:
+        return "above 90th percentile"
 
 if __name__ == "__main__":
     run_grip_test(sex="female", num_samples=80)
