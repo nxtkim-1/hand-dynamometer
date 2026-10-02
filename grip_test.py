@@ -73,7 +73,7 @@ def run_grip_test(sex="female", num_samples=80, save_path="session_test.csv"):
         for r in readings:
             writer.writerow([r["timestamp"], r["force"]])
 
-    print(f"{save_path} 저장 완료!")
+    print(f"{save_path} saved!")
     return readings, peak_force, verdict
 
 
@@ -133,6 +133,57 @@ def percentile_band(force, row):
         return "75th-90th percentile"
     else:
         return "above 90th percentile"
+
+from statistics import NormalDist
+
+z = -1.44
+percentile = NormalDist().cdf(z) * 100
+print(f"Estimated percentile: {percentile:.1f}%")  
+
+PEAK = {"male": (51.9, 9.9), "female": (31.4, 6.1)}
+
+
+def t_score(force, sex):
+    peak_mean, peak_sd = PEAK[sex]
+    return (force - peak_mean) / peak_sd
+
+CUTOFFS = {
+    "EWGSOP2":   {"male": 27, "female": 16},
+    "AWGS 2019": {"male": 28, "female": 18},
+}
+print(CUTOFFS["AWGS 2019"]["female"]) 
+
+def check_cutoffs(force, age, sex):
+    results = {}
+    for name, values in CUTOFFS.items():
+        if age < 65:
+            results[name] = "not applicable (defined for age 65+)"
+        elif force < values[sex]:
+            results[name] = f"below cut-off (< {values[sex]} kg)"
+        else:
+            results[name] = f"at or above cut-off (>= {values[sex]} kg)"
+    return results
+
+
+def assess(force, age, sex, norms=None):
+    if norms is None:
+        norms = load_norms()
+    row = find_norm_row(norms, age, sex)
+    z = z_score(force, row)
+    return {
+        "force": force, "age": age, "sex": sex,
+        "ref_age": row["age"],
+        "median": row["p50"],
+        "band": percentile_band(force, row),
+        "z": round(z, 2),
+        "percentile": round(estimated_percentile(z), 1),
+        "t": round(t_score(force, sex), 2),
+        "cutoffs": check_cutoffs(force, age, sex),
+    }
+
+from pathlib import Path
+
+NORMS_PATH = Path(__file__).parent / "data" / "dodds2014_norms.csv"
 
 if __name__ == "__main__":
     run_grip_test(sex="female", num_samples=80)
