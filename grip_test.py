@@ -4,6 +4,8 @@ from datetime import datetime
 from pathlib import Path
 import matplotlib.pyplot as plt
 from grip_compare import assess, print_report, plot_on_centiles
+from datetime import datetime
+
 
 SESSIONS_DIR = Path(__file__).parent / "sessions"
 
@@ -35,6 +37,10 @@ def classify_grip(force, sex="female"):
     cutoff = 27 if sex == "male" else 16 
     return "Normal" if force >= cutoff else "Risk (Below Standard)"
 
+def make_session_path():
+    SESSIONS_DIR.mkdir(exist_ok=True)
+    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    return SESSIONS_DIR / f"session_{stamp}.csv"
 
 def run_grip_test(age, sex, num_samples=80):
     plt.ion()
@@ -81,6 +87,9 @@ def run_grip_test(age, sex, num_samples=80):
 if __name__ == "__main__":
     age,sex = ask_user_info()
     run_grip_test(age,sex)
+
+
+
 
 
 
