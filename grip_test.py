@@ -73,6 +73,7 @@ def run_grip_test(age, sex, num_samples=80):
     print(f"Verdict: {classify_grip(peak_force, sex)}")
 
     save_path = make_session_path()
+    
     with open(save_path, "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(["timestamp_ms", "force_kg"])
