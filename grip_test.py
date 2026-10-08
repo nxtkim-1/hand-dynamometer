@@ -1,5 +1,8 @@
 import csv
 import random
+import time
+import fake_data
+import metrics
 from datetime import datetime
 from pathlib import Path
 import matplotlib.pyplot as plt
@@ -7,8 +10,50 @@ from grip_compare import assess, print_report, plot_on_centiles
 from datetime import datetime
 
 
+USE_FAKE = True
+PORT = "/dev/cu.usbserial-XXXX"
+BAUD = 115200 #match with arduino code
+
+TRIALS_PERHAND = 3
+TRIAL_SECONDS = 5
+FATIGUE_SECONDS = 32
+REST_SECONDS = 3 if USE_FAKE else 60
+
 SESSIONS_DIR = Path(__file__).parent / "sessions"
 
+PROMPT_POSTURE = "Sit upright, elbow at 90 degrees, forearm neutral, wrist straight."
+PROMPT_GO = "Squeeze as hard as you can! Harder... harder... harder..."
+PROMPT_FATIGUE = "Squeeze as hard as you can and KEEP squeezing for 30 seconds!"
+
+def ask_user_info():
+    age = int(input("Enter age:"))
+    sex = input("Enter sex (male/female): ").strip().lower() #strip = erase space, lower = make it lower case
+    while sex not in ("male", "female"):
+        sex = input("Please type male or female: ").strip().lower()
+    dominant = input("Dominant hand (right/left): ").strip().lower()
+    while dominant not in ("right", "left"):
+        dominant = input("Please type right or left: ").strip().lower()
+    return age, sex, dominant
+
+def open_serial():
+    import serial                       # arduino data
+    ser = serial.Serial(PORT, BAUD, timeout=1) #이 줄이 실제로 Arduino와 연결하는 부분이야, Arduino에게 데이터를 기다릴 때 최대 1초까지만 기다려
+    time.sleep(2)                       # the Arduino restarts when we connect
+    input("Remove all force from the handle, then press Enter to zero it...")
+    ser.write(b"T")                     # serial 통로를 통해 Arduino에게 데이터를 보내라 T = tare (set zero)
+    time.sleep(1)
+    ser.reset_input_buffer()
+    return ser
+
+def countdown(seconds=3):
+    for n in range(seconds, 0, -1):
+        print(f"  {n}...")
+        plt.pause(1)
+
+def rest(seconds):
+    if seconds > 0:
+        print(f"Rest for {seconds} seconds...")
+        plt.pause(seconds)
 
 def fake_reading(t):
     if t < 20:
@@ -73,7 +118,7 @@ def run_grip_test(age, sex, num_samples=80):
     print(f"Verdict: {classify_grip(peak_force, sex)}")
 
     save_path = make_session_path()
-    
+
     with open(save_path, "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(["timestamp_ms", "force_kg"])
