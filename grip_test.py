@@ -55,6 +55,54 @@ def rest(seconds):
         print(f"Rest for {seconds} seconds...")
         plt.pause(seconds)
 
+def record(ser, ax, hand, title, test, sounds):
+    """Record one squeeze and draw it live. Returns the raw curve."""
+    if ser is None:
+        fake_lines = fake_data.amke_lines(hand, test, seconds)
+    else:
+        ser.reset_input_buffer()
+
+    readings = []
+    first_ms = None
+    start = time.time()
+    i = 0
+    while True:
+        if ser is None:
+            if i>= len(fake_lines):
+                break
+            line = fake_lines[i]
+        else:
+            if time.time() - start >= seconds:
+                break
+            line = ser.readline().decode(errors = "ignore").strip()
+        i += 1
+
+        try:
+            time_str, force_str = line.split(",")
+            time_ms = int(time_str)
+            force_kg = float(force_str)
+        except ValueError:
+            continue
+
+        if first_ms is None:
+            first_ms = time_ms
+        readings.append({"time_ms": time_ms - first_ms, "force_kg": force_kg})
+
+        if len(readings) % 5 == 0:
+            now_s = readings[-1]["time_ms"]/1000
+            ax.clear()
+            ax.plot([r["time_ms"]/ 1000 for r in readings], [r["force_kg"] for r in readings])
+            ax.set_xlim(max(0, now_s - 5), max(5, now_s))
+            ax.set_xlabel("Time (s)")
+            ax.set_ylabel("Force (kg)")
+            ax.set_title(title)
+            plt.pause(0.1 if ser is None else 0.001)
+
+        if len(readings) == 0:
+            raise RuntimeError("No data received - check the USB cable and the PORT setting.")
+        return readings
+
+
 def fake_reading(t):
     if t < 20:
         force = t * 1.5
