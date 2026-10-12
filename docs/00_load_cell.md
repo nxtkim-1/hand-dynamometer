@@ -1,5 +1,7 @@
 # 00 — The load cell
 
+> **Update 2026-10-12 — the cell in hand differs from this spec.** Measured with calipers: **130 × 40 × 22 mm, 3 tapped holes per end, 33 mm end blocks**, cable ∅ 5.13 mm, stamped "2607021487 100kg". The table below describes the cell the project was originally designed around (130 × 30 × 22, 2 holes per end). Use the measured values in `docs/06_build_log.md` (entry 2026-10-12) and `images/measured_load_cell.png`. The electrical figures below are still the targets to compare against, but confirm them against the seller's listing for this exact part.
+
 Every dimension in this project derives from this part. Read this before buying anything.
 
 ## The part
