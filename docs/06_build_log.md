@@ -136,3 +136,47 @@ Keep the 54–58 mm round barrel so the grip span does not change. Instead:
 Status: nothing printed. The old fit coupon and halves are **not to be printed**; they are for the wrong cell.
 
 Next: answer the five questions, measure the boards, then Claude updates `dynamometer_cad.py` and regenerates.
+
+### 2026-10-12 (evening) — decisions, wiring plan, CAD rebuilt for the real cell
+**Answers to the open questions (Thomas, 16:50–17:00):** M6 bolt threads in by hand; holes are tapped all the way through; pair centre is 11.80 mm from the end face; hole is centred on the width (16.67 mm edge distance plus hole size gives 19.95 mm, so within 0.1 mm); Nano is 44.0 mm (46.0 with the USB connector) × 18.11 mm, USB connector 3.8 mm above the board, header pins 8 mm out of the board on both sides.
+
+**Cable exit (from Thomas's close-up photo):** the cable leaves one of the long 130 × 22 side faces, not the 3-hole face and not an end face. The hole edge is 3.00 mm from the end face and 8.5 mm from the nearest edge, so with a 5.13 mm cable the hole is centred on the 22 mm thickness (8.5 + 5.13 + about 8.4 = 22). Hole centre is about 5.6 mm from the end face. This end is the fixed (cable) end and becomes the **lower, palm-half end**.
+
+**Decisions made (Thomas):**
+| Decision | Options offered | Chosen |
+|---|---|---|
+| Handle vs the 40 mm cell | A slim round (side gap 1.5) / **B roomy round (3 mm all round)** / C oval 52 × 61 | **B** |
+| Bolts | 3 per end (6 total) / 2 per end | **3 per end**, plenty of M6 bolts on hand |
+| Wiring | solder directly / Dupont jumpers / jumpers for the bench then solder | **soldered wires** (has wire and jumper wire to cut up) |
+
+**Wiring plan** (`images/soldering_guide.png`): cell red → E+, black → E−, white → A−, green → A+ (yellow = shield if present, not soldered). HX711 GND → Nano GND, DT → D3, SCK → D2, VCC → 5V. Confirm against the labels printed on the boards, then check E+/E− ≈ 405 Ω and A+/A− ≈ 350 Ω before powering.
+
+![Soldering guide](../images/soldering_guide.png)
+
+**CAD rebuilt for the real cell** (`cad/dynamometer_cad.py`; the 30 mm version is kept in `cad/archive/v1_30mm_cell/`). Handle is now ∅57.0–58.8 mm (option B). Build checks all pass: halves never touch (0 mm³), cell overlaps nothing (0 mm³), bending-zone clearance 3.00 mm, wall around the pocket at least 2.5 mm everywhere, wall under finger grooves 11.5 mm, **all 6 bolts + washers pass freely through the halves (0 mm³)**. The bolt check was tested against a deliberately misplaced bolt: it flags at 0.7 mm of offset, so the holes tolerate ±0.6 mm of position error. Counterbore walls are thin (2.1 mm between the two pair counterbores, 2.4 mm pair-to-single); fine in PETG with 4 walls but worth checking on the print.
+
+**Released for printing: fit coupon only** (`cad/output/print_ready/fit_coupon_print.stl`, about 33 g). The palm half, finger half, cover and cradle are in `cad/output/wip/` marked do-not-print until the pod and cable routing are decided. The old print-ready files (wrong cell) are in the archive folder.
+
+**Open:**
+1. Electronics pod: the Nano (44 × 18.11, needs a bore of about 47.6 mm) does not fit the 46 mm bore. Options to be chosen.
+2. Cable routing: the cable exits sideways with only about 6 mm between the cell face and the handle wall, which is too tight a bend for the jacketed cable. Options to be chosen.
+3. HX711 real length, width and thickness.
+
+## 2026-10-13 - P1 (round bore) and R1 (jacket trim + eyelet) built
+
+**Decisions (Thomas):** P1 = round dia 50 electronics bore. R1 = trim the cable jacket and clamp the wires. HX711 sized from online nominal values (24 x 16 mm; NOT measured - measure it when it arrives and tell me).
+
+**What changed in the CAD** (`cad/dynamometer_cad.py`, picture: `images/pod_layout.png`)
+- Bore 46 -> 50 mm. Nano corners reach 23.79 mm, so 1.21 mm spare. Wall around the bore is >= 2.5 mm everywhere.
+- Nano rides on a 10 mm central rail on the cover (foam tape holds it), lower pins hang beside the rail, four side stops centre it. Board z -34.5..-32.9.
+- HX711 stands on its 16 mm edge between two short rails on the cover, pads on the +-y edges, x = 26.5.
+- USB window 14 x 11 mm, centred on the connector (z -31.0), in the -y wall.
+- Cover screws: the old M3 pilots collided with the bigger bore. Now 2 bosses inside the bay, diagonal. **Screws are M3 x 10 (was x 8).**
+- R1: jacket is trimmed to a stub of 2 mm or less at the cell face (the pocket gap is only 3 mm, so a longer stub would hit the walls). The 4 conductors drop straight down the corner into a 4.6 mm eyelet block fused to the bore wall at z -17..-9. That block is the clamp / strain relief.
+- Ledge, boss and gusset extended to reach the bigger bore wall, clipped to the barrel outline.
+
+**Checks (all pass):** Nano+pins, HX711, USB plug, wire bundle path, cover vs halves: 0.000 mm3 overlap. Halves 0.000. Bending zone 3.00 mm. Bolt checks unchanged.
+
+**Release status:** fit coupon unchanged (the file you may already have sliced is still the released one). Palm half, finger half and cover are in `cad/output/print_after_G0/` - print them only after the coupon passes G0.
+
+**Open:** HX711 real size; plug moulding size; whether Nano header pins are really 8 mm both sides after soldering wires (tips at z -24.9).
