@@ -180,3 +180,28 @@ Next: answer the five questions, measure the boards, then Claude updates `dynamo
 **Release status:** fit coupon unchanged (the file you may already have sliced is still the released one). Palm half, finger half and cover are in `cad/output/print_after_G0/` - print them only after the coupon passes G0.
 
 **Open:** HX711 real size; plug moulding size; whether Nano header pins are really 8 mm both sides after soldering wires (tips at z -24.9).
+
+### 2026-10-13 — decisions, a near-miss on the coupon file, HX711 size, cable plan reopened
+**Decisions (Thomas):**
+| Topic | Decision |
+|---|---|
+| Pod | **P1**: everything inside the handle, round bore about ∅50 mm, boards on standoffs |
+| Cable | **R1 rejected** (it meant cutting back the cable jacket). Thomas does not want the load cell cable cut or trimmed. Cable plan reopened, see below. |
+| HX711 size | use what is published online: **24 × 16 mm** board (the reference image Thomas supplied). Other listings give 22 × 22 and 34 × 20 × 3 mm, so the pod will be designed around a **34 × 20 × 6 mm envelope** so any of them fits. Verify with calipers when convenient. |
+
+**Near-miss:** the Bambu Studio screenshot sent at 12:59 showed the **old** fit coupon (82 mm tall, one long slot) on the plate, not the new one (62 mm tall, three round counterbored holes). Both files were called `fit_coupon_print.stl`. I confirmed the file Thomas had sent back to me is the new one (57.9 × 58.3 × 62.0 mm, 46.6 cm³) and the old one is 55.6 × 58.0 × 82.0 mm (53.7 cm³). To stop the mix-up the new file is now named **`fit_coupon_v2_print.stl`** and the CAD script writes `_v2_print.stl` for every part. Rule: before any print, check the object on the plate against the table below.
+
+| File | Size on the plate | What you see |
+|---|---|---|
+| NEW `fit_coupon_v2_print.stl` | 57.9 × 58.3 × 62.0 mm | three separate round holes, each with a round counterbore |
+| OLD `fit_coupon_print.stl` | 55.6 × 58.0 × 82.0 mm | one tall slot |
+
+**Cable: assumption found to be wrong.** docs/00 assumed a lead of about 250 mm. Thomas's photos show a much longer cable (a loop in a hand, with a zip tie). Not measured yet. The cable length decides what is physically possible:
+- Pod volume is about 73 cm³ (∅50 × 37). Nano plus HX711 take about 20 cm³ of that. A 5.13 mm cable needs roughly 0.4 cm³ per cm once bend radius is allowed for, so only about 30 cm of spare cable can be coiled inside.
+- Anything longer must be stored somewhere else, or the electronics must move out of the handle, or the cable gets cut. Options and recommendation were sent to Thomas; waiting on the cable length.
+
+**Open:** cable length (exit to bare tip, uncut); USB plug moulding width and height (asked twice, still missing); which cable option; whether to move G2 to about Oct 23 and G3 to about Oct 30.
+
+**Shopping list (for the electronics bench test and assembly):** female–female Dupont jumpers; male header strip if the HX711 has no pins; heat shrink (2–10 mm); 4 mm and 2 mm hex keys (M6 and M3 button heads); check solder, M6 washers (6), M3×8 screws (2), small zip ties, sandpaper or needle file. Later (calibration): kitchen scale, masses, strap and hook, vise or clamps.
+
+**Repo state found and cleaned (2026-10-13, 17:05):** the repo already held a first draft of the **P1 pod** (∅50 bay, Nano on a central rail, HX711 on edge, M3 cover bosses; `cad/draw_pod.py`, `images/pod_layout.png`, parts in `cad/output/print_after_G0/`). I re-ran every check on it and they pass (Nano and HX711 clear of the walls, USB plug clears the window, six bolts clear, halves never touch, bending-zone gap 3.00 mm). But that draft was built for **R1**: the cell's wires are trimmed back to a 3 mm bundle and pass through a 4.6 mm eyelet. A 5.13 mm uncut jacket does not fit that eyelet or the 3 mm gap beside the cell, so the cable route and the pod ceiling must be redone once the cable option is chosen. The main parts therefore stay **not released**. Four stale **wrong-cell** files (`palm_half_print.stl`, `finger_half_print.stl`, `cover_print.stl`, `calibration_cradle_print.stl`, identical to the v1 archive) had reappeared in `cad/output/print_ready/`; they were deleted. `print_ready/` now holds only `fit_coupon_v2_print.stl`.
