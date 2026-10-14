@@ -74,6 +74,22 @@ Bring the `.3mf` project file on a USB stick, or email/upload it — ask the RPC
 
 Bring the `.3mf` or the STL — never G-code. G-code is tied to one printer profile.
 
+## Better surface on the real parts
+
+The fit coupon was printed on the RPC's quick preset (0.20 mm Strength, 6 walls, 25 % grid) and the surface looked rough. For the parts you hold, spend the extra time:
+
+| Setting (Bambu Studio) | Value | Why |
+|---|---|---|
+| Process preset | **0.12 mm Fine** (or 0.16 mm Optimal if time is short) | thinner layers = smaller steps on the curved grip |
+| Wall loops | 4 | strength lives in the walls |
+| Outer wall speed | about 60 mm/s | slower outer wall = smoother skin |
+| Seam position | Aligned, placed on the side seam between the halves | hides the seam line |
+| Sparse infill | 25-40 %, gyroid | strong in every direction |
+| Supports | tree, only where the slicer asks (inside the box, under the top cap) | |
+| Filament | PETG (Basic or HF), not PLA | PLA creeps under a 30-second squeeze |
+
+Expect roughly 1.5-2x the print time of the 0.20 mm preset. Finish the grip with 220 then 400 grit sandpaper.
+
 ## Watching the print
 
 - **Stay for the first layer.** Ninety percent of failures are visible in the first two minutes. If the filament isn't sticking, stop and fix the bed (clean it, re-level, glue stick).

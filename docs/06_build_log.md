@@ -234,3 +234,18 @@ Next: answer the five questions, measure the boards, then Claude updates `dynamo
 **Repo housekeeping:** the five stale wrong-cell STLs reappeared in `cad/output/print_ready/` again and were moved to `cad/archive/v1_30mm_cell/stale_print_ready/`. `print_ready/` holds only `fit_coupon_v2_print.stl`.
 
 **2026-10-14 (noon) — dish draft v2: silhouette changed.** Thomas pointed out the first draft (domed round shaft on a round flared base) read as a phallus. v2 replaces the dome with a **flat chamfered top** (z = 151.6, hook hole keeps 4.3 mm of material above it) and the round dish with a **112 × 130 mm rounded-rectangle tray** (corner radius 14, rim 3 mm). Cable path, collar, port and plug are unchanged. All overlaps 0.000 mm3, cable clearance 1.2 mm all round, 16 mm straight run, spare-cable room about 2 m at 40 % packing (narrower in x than the round dish). Files: `cad/output/draft_dish/*_v2_DRAFT_do_not_print.stl`, `images/dish_draft_v2_*.png`. The round v1 files are in `cad/output/draft_dish/v1_round_SUPERSEDED/`.
+
+**2026-10-14 (afternoon) — draft v3 "compact box" (Claude), offered next to the dish.**
+Same need (uncut cable, at least 15 mm of space where it leaves the cell), solved inside a closed base instead of an open tray. Files: `cad/compact_base_draft.py`, `cad/render_compact.py`, `cad/output/draft_compact/*_v3_DRAFT*`, `images/compact_v3_*.png`, `images/options_compact_vs_dish.png`. DO NOT PRINT until approved.
+- Base: rounded box 57 x 82 mm (same width as the grip on the palm and finger sides, longer across), top at z = 12, cover underneath on 4 M3 screws. Overall height 204 mm (was 200). Flat chamfered top, as in dish v2.
+- Cable: leaves the cell inside the box. **18.5 mm** from the cell's side face to the end wall. Modelled as 3.5 mm straight, then an 11 mm-radius bend down (2.1 x its diameter), then into the coil space. Clear of every part by at least 1.3 mm, 7.0 mm from the finger half. It touches only the palm half's box, so it cannot carry squeeze force.
+- Spare cable: coils on the box floor under the clamp, two loops wide, up to 4 layers: room for about **1.0 m** (tightest loop bend 11.6 mm).
+- Electronics: Nano on a rail on the cover, long side along x, USB through the palm-side wall (14 x 11 window, plug size still assumed). HX711 on a 45-degree shelf on the end wall above the Nano, 15 mm of room above the Nano's pins.
+- Finger half starts at z = 15; grooves at 25, 46, 67, 88.
+- Checks: all overlaps 0.000 mm3; smallest palm/finger gap 3.00 mm; bending-zone clearance 3.00 mm; grip wall >= 2.5 mm. Each check was also run against a deliberately broken version and caught it (a 14.5 mm bay makes the cable hit the wall; Nano moved 3 mm hits the screw bosses; coil space raised hits the gusset).
+- Printing: the box ceiling is a wide flat overhang, so the palm half needs tree supports inside the box (removed through the open bottom).
+- **Base test piece** `base_test_v3_DRAFT` (box + clamp zone, about 52 g before supports): proposed as the next test before the full parts, like the fit coupon was for the bolt pattern.
+- Bolts: M6 x 20 + washer gives 7.4 mm of thread in the cell (1.2 x D); M6 x 25 gives 12.4 mm (2.1 x D). 25 preferred for the real parts.
+- Assumed, not measured: cable bend radius 11 mm (bend test asked), cable length, USB plug size, HX711 size (nominal 24 x 16).
+- Still to do whichever draft is chosen: calibration cradle redesign for the new base.
+- Housekeeping: the five v1 wrong-cell STLs were back in `cad/output/print_ready/` again; moved to `cad/archive/v1_30mm_cell/stale_print_ready/`.
