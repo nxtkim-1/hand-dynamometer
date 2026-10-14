@@ -205,3 +205,32 @@ Next: answer the five questions, measure the boards, then Claude updates `dynamo
 **Shopping list (for the electronics bench test and assembly):** female–female Dupont jumpers; male header strip if the HX711 has no pins; heat shrink (2–10 mm); 4 mm and 2 mm hex keys (M6 and M3 button heads); check solder, M6 washers (6), M3×8 screws (2), small zip ties, sandpaper or needle file. Later (calibration): kitchen scale, masses, strap and hook, vise or clamps.
 
 **Repo state found and cleaned (2026-10-13, 17:05):** the repo already held a first draft of the **P1 pod** (∅50 bay, Nano on a central rail, HX711 on edge, M3 cover bosses; `cad/draw_pod.py`, `images/pod_layout.png`, parts in `cad/output/print_after_G0/`). I re-ran every check on it and they pass (Nano and HX711 clear of the walls, USB plug clears the window, six bolts clear, halves never touch, bending-zone gap 3.00 mm). But that draft was built for **R1**: the cell's wires are trimmed back to a 3 mm bundle and pass through a 4.6 mm eyelet. A 5.13 mm uncut jacket does not fit that eyelet or the 3 mm gap beside the cell, so the cable route and the pod ceiling must be redone once the cable option is chosen. The main parts therefore stay **not released**. Four stale **wrong-cell** files (`palm_half_print.stl`, `finger_half_print.stl`, `cover_print.stl`, `calibration_cradle_print.stl`, identical to the v1 archive) had reappeared in `cad/output/print_ready/`; they were deleted. `print_ready/` now holds only `fit_coupon_v2_print.stl`.
+
+### 2026-10-14 — G0 PASS, and a bigger base for the uncut cable (DRAFT)
+**G0 result (Thomas, fit coupon on the real cell): PASS.**
+- Three M6 × 20 bolts went in with no wobble. Paper and feeler gauge slid freely in the 3 mm gap. Nothing cracked.
+- Print used the RPC preset (0.20 mm Strength, PETG Basic, 6 walls, 25 % grid). Thomas found the surface rough ("seems pretty cheap") and has budget for slower or finer prints on the real parts.
+- Cell was wired to the HX711 for the photo. Before powering: E+/E− about 405 Ω and A+/A− about 350 Ω.
+- Lesson: the real parts assume **M6 × 25** (14 mm of thread in the cell). M6 × 20 gives only about 9 mm, and less with washers. Use M6 × 25 plus washers on the real parts.
+
+**Thomas's concern: the cable.** It will not be cut, it cannot bend tightly, and he wants at least 1.5 cm of free space where it leaves the side of the cell. He asked for a version with a bigger base.
+
+**Draft built: "dish" base** (`cad/dish_base_draft.py`, renders `images/dish_draft_*.png`, STLs in `cad/output/draft_dish/`, all marked DO NOT PRINT):
+- 130 mm open dish around the electronics pod: 4 mm floor, 3 mm rim, rim top at z = -2.
+- Palm half gets a full-round collar up to z = 11 so the cell stays enclosed. A round cable port (7.6 mm) goes through its wall.
+- The cable leaves the cell face and runs **16 mm straight** (asked for 15) before the first bend. Bends are R21 (4.1 × cable diameter), then it enters the pod wall at z = -40 and the jacket ends 1.5 mm inside the bore.
+- Finger half now starts at z = 14 (3 mm above the collar). Finger grooves moved up 19 mm: 24, 45, 66, 87.
+- Cover became a round plug (∅53.2) that sits in a hole in the dish floor, flush underneath. The R1 eyelet block is gone.
+- Checks: all overlaps 0.000 mm3 (palm, finger, plug, cell). Cable tube is clear of every part with 1.2 mm to spare all round. Outermost cable reach 59.6 mm against the rim's inner wall at 62 mm. Spare cable that can be coiled in the dish: about 4 m at a realistic 40 % packing.
+- Unchanged and still validated by G0: bolt pattern, clamp, ledge, 3 mm gap, counterbores.
+
+**Not done yet / open:**
+- The calibration cradle (64 mm V-block) no longer fits a ∅130 base and must be redesigned.
+- The USB window size (14 × 11) and the HX711's real size are still assumptions.
+- Bend radius 21 mm is assumed from 4 × diameter. Thomas to bend-test the cable around a roughly 40 mm object.
+- Cable length (uncut, exit to bare tip) still unmeasured.
+- Wrist/heel of hand may touch the rim or the exposed cable at the collar. Check by holding the coupon-sized mock-up against the hand, or print the dish at low cost first.
+
+**Repo housekeeping:** the five stale wrong-cell STLs reappeared in `cad/output/print_ready/` again and were moved to `cad/archive/v1_30mm_cell/stale_print_ready/`. `print_ready/` holds only `fit_coupon_v2_print.stl`.
+
+**2026-10-14 (noon) — dish draft v2: silhouette changed.** Thomas pointed out the first draft (domed round shaft on a round flared base) read as a phallus. v2 replaces the dome with a **flat chamfered top** (z = 151.6, hook hole keeps 4.3 mm of material above it) and the round dish with a **112 × 130 mm rounded-rectangle tray** (corner radius 14, rim 3 mm). Cable path, collar, port and plug are unchanged. All overlaps 0.000 mm3, cable clearance 1.2 mm all round, 16 mm straight run, spare-cable room about 2 m at 40 % packing (narrower in x than the round dish). Files: `cad/output/draft_dish/*_v2_DRAFT_do_not_print.stl`, `images/dish_draft_v2_*.png`. The round v1 files are in `cad/output/draft_dish/v1_round_SUPERSEDED/`.
