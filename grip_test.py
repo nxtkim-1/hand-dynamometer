@@ -14,7 +14,7 @@ USE_FAKE = True
 PORT = "/dev/cu.usbserial-XXXX"
 BAUD = 115200 #match with arduino code
 
-TRIALS_PERHAND = 3
+TRIALS_PER_HAND = 3
 TRIAL_SECONDS = 5
 FATIGUE_SECONDS = 32
 REST_SECONDS = 3 if USE_FAKE else 60
@@ -58,7 +58,7 @@ def rest(seconds):
 def record(ser, ax, hand, title, test, sounds):
     """Record one squeeze and draw it live. Returns the raw curve."""
     if ser is None:
-        fake_lines = fake_data.amke_lines(hand, test, seconds)
+        fake_lines = fake_data.make_lines(hand, test, seconds)
     else:
         ser.reset_input_buffer()
 
@@ -177,13 +177,129 @@ def run_grip_test(age, sex, num_samples=80):
     return readings, result
 
 
-
 if __name__ == "__main__":
     age,sex = ask_user_info()
     run_grip_test(age,sex)
 
 
+def run_protocal(ser, doeminant):
+    other = "left" if dominant == "right" else "right"
+    trials = []
 
+    plt.ion()
+    fig,ax = plt.subplots()
 
+    for tiral in range(1, TRIALS_PER_HAND + 1):
+        for hand in [dominant, other]:
+            print(f"\n--- {hand.upper()} hand, trial {trial} of {TRIALS_PER_HAND} ---")
+            print(PROMPT_POSTURE)
+            input("Press Enter when ready...")
+            countdown()
+            print(PROMPT_GO)
+            readings = record(ser, ax, hand, f"{hand} hand - {trial}", "max", TRIAL_SECONDS)
+            m = metrics.trial_metrics(readings)
+            print(f"Relax. Peak: {m['peak_kg']:.1f} kg")
+            trials.append({"hand": hand, "trials": trial, "test": "max", "readings": readings, "metrics": m})
+            rest(REST_SECONDS)
+
+    print(f"\n--- FATIGUE TEST ({dominant.upper()} hand) ---")
+    print(PROMPT_POSTURE)
+    input("Press Enter when ready...")
+    countdown()
+    print(PROMPT_FATIGUE)
+    readings = record(ser, ax, dominant, "30-second fatigue test",
+                      "fatigue", FATIGUE_SECONDS)
+    fatigue = {"hand": dominant, "trial": 1, "test": "fatigue",
+               "readings": readings, "metrics": metrics.trial_metrics(readings)}
+    fatigue["metrics"]["fatigue_index_pct"] = metrics.fatigue_index_pct(readings)
+    print("Relax. Fatigue test done.")    
+
+    plt.ioff()
+    plt.close(fig)
+    return trials, fatigue
+
+def best_trial(trials, hand):
+    best = None
+    for t in trials: 
+        if t["hand"] == hand:
+            if best is None or r["metrics"]["peak_kg"] > best["metrics"]["peak_kg"]:
+                best = t
+    return best
+
+def summarize(trials, fatigue):
+    best_right = best_trial(trials, "right")
+    best_left = best_trial(trials, "left")
+    ratio, weaker_pct = metrics.asymmetry(best_left["metrics"]["peak_kg"], best_right["metrics"]["peak_kg"])
+
+    return {
+        "right": best_right["metrics"],
+        "left": best_left["metrics"],
+        "ratio": ratio,
+        "weaker_pct": weaker_pct,
+        "fatigue_index_pct": fatigue["metrics"]["fatigue_index_pct"],
+        "overall_peak_kg": max(best_right["metrics"]["peak_kg"],
+                               best_left["metrics"]["peak_kg"]),
+    }
+               
+def print_summary(summary):
+    print("\n" + "=" * 50)
+    print("GRIP TEST SUMMARY (best of 3 trials per hand)")
+    print("-" * 50)  
+    for hadn in ["right", "left"]:
+        m = summary[hand]
+        print(f"{hand.capitalize():5} peak{m['peak_kg']:5.1f} kg | "
+              f"time to peak {m["time_to_peak_ms"]:4d} ms |"
+              f"RFD {m['rfd_n_per_s']:6.0f} N/s")
+        print(f"Fatigue index: {summary['fatigue_index_pct']:.1f}% decline over 30 s")
+        print(f"Left/right ratio: {summary['ratio']:.2f} "
+          f"(weaker hand {summary['weaker_pct']:.1f}% weaker)")
+        print("=" * 50)
+
+def save_session (stamp, trials, fatigue, summary):
+    SESSIONS_DIR.mkdir(exist_ok = True)
+
+    raw_path = SESSIONS_DIR / f"session_{stamp}_raw.csv"
+    with open(raw_path, "w", newline = "") as f:
+        writer = csv.writer(f)
+        writer.writerow(["hand", "trial", "test", "peak_kg", "time_to_peak_ms", "rfd_n_per_s", "fatigue_index_pct"])
+
+    summary_path = SESSIONS_DIR / f"session_{stamp}_summary.csv"
+    with open(summary_path, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["hand", "trial", "test", "peak_kg",
+                         "time_to_peak_ms", "rfd_n_per_s", "fatigue_index_pct"])
+
+        for t in trials + [fatigue]:
+            m = t["metrics"]
+            writer.writerow([t["hand"], t["trial"], t["test"], m["peak_kg"],
+                             m["time_to_peak_ms"], round(m["rfd_n_per_s"], 1),
+                             m.get("fatigue_index_pct", "")])
+        
+        writer.writerow(["left_right_ratio", round(summary["ratio"], 3)])
+        writer.writerow(["weaker_hand_pct", round(summary["weaker_pct"], 1)])
+
+    print(f"Saved {raw_path.name} and {summary_path.name}")
+
+def main():
+    stamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    age, sex, dominant = ask_user_info()
+    ser = None if USE_FAKE else open_serial()
+
+    trials, fatigue = run_protocal(ser, dominant)
+    if ser is not None:
+        ser.close()
+        
+
+    summary = summarize(trials, fatigue)
+    print_summary(summary)
+
+    result = assess(summary["overall_peak_kg"], age, sex)
+    print_report(result)
+
+    save_session(stamp, trials, fatigue, summary)
+    plot_on_centiles(result, save_path=  SESSIONS_DIR)
+
+if __name__ == "__main__":
+    main()
 
 

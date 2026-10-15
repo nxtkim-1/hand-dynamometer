@@ -62,16 +62,17 @@ def fatigue_index_pect(readings, squeeze_ms = 30000, final_window_ms = 1000): #�
 def asymmetry(left_kg, right_kg):
     """Left/right ratio, and how much weaker the weaker hand is (in %)"""
     ratio = left_kg / right_kg
-    weaker_pct = abs(left_kg - right_kg) / max(left_kg, right_kg) * 100
+    weaker_pct = abs(left_kg - right_kg) / max(left_kg, right_kg) * 100 #absolute sign
     return ratio, weaker_pct
 
-def trial_metrics(readings):
+def trial_metrics(readings): # readings = 악력 측정 데이터
     """All single-trial metrics in one dictionary."""
     return{
         "peak_kg": find_peak(readings)["force_kg"],
         "time_to_peak_ms": time_to_peak_ms(readings),
         "rfd_n_per_s": rfd_n_per_s(readings),
     }
+
 
 if __name__ == "__main__":
     import fake_data
