@@ -271,3 +271,5 @@ Superseded outputs (round-pod parts, dish v2, earlier drafts) were moved to `cad
 **Hardware changes:** 6 × M6 × 25 + 6 washers (was 4); 4 × M3 × 10 for the cover (was 2 × M3 × 8). BOM updated. Assembly steps for v3 at the top of `docs/03_assembly.md`.
 
 **Still to do:** calibration cradle for the v3 base (not needed until G3); G1.
+
+**2026-10-16 (evening) — bench test layout.** `images/breadboard_test.png` (`cad/draw_breadboard.py`): Nano straddling the centre gap of a standard breadboard, HX711 on a 4-pin male header in its own rows, 4 male-male jumpers: GND -> GND, DT -> D3, SCK -> D2, VCC -> 5V (same pins as the firmware). Test sketch prints raw HX711 counts at 115200 baud; pass = number changes by tens of thousands when the cell is pressed.
