@@ -1,5 +1,6 @@
 """
-compact_base_draft.py — DRAFT v3 "compact box": the uncut load-cell cable lives inside a closed base.
+compact_base_draft.py — v3 "compact box" (RELEASED 2026-10-16, chosen by Thomas over the dish):
+the uncut load-cell cable lives inside a closed base.
 
     python compact_base_draft.py        (needs cadquery; dynamometer_cad.py must be in the same folder)
 
@@ -18,7 +19,7 @@ What changes against the G0-validated design (bolt pattern, clamp, ledge, 3 mm g
   * flat chamfered top (no dome), same as the dish v2 draft
   * a cable slot in the box top lets the cell, with its cable already bent, be lowered in from above
 
-Everything goes to output/draft_compact/ and is marked DO NOT PRINT until Thomas approves the draft.
+Writes the print files to output/print_ready/ (numbered in print order) and STEP files to output/v3/.
 """
 import os
 import math
@@ -92,7 +93,10 @@ BOSSES = [(X_IN0 + 3.2, IN_HY - 3.2), (X_IN1 - 3.2, IN_HY - 3.2),
 NANO_YC = -IN_HY + 3.2 + BOSS_R + 0.5 + NANO_W / 2
 COIL_Y0 = NANO_YC + NANO_W / 2 + 0.4 + 1.4 + 0.5          # spare-cable loops start just past the Nano's side stops
 
-OUT = os.path.join(D.OUT, "draft_compact")
+OUT = os.path.join(D.OUT, "v3")
+REL = os.path.join(D.OUT, "print_ready")
+REL_NAMES = {"base_test": "1_base_test_v3", "palm_compact": "2_palm_half_v3",
+             "finger_compact": "3_finger_half_v3", "cover_compact": "4_cover_v3"}
 
 
 def rrect(hx, hy, rc, z0, z1, cx=AX, cy=0.0):
@@ -235,13 +239,15 @@ def vol(q):
 
 # ---------------------------------------------------------------- main
 if __name__ == "__main__":
-    os.makedirs(OUT, exist_ok=True)
+    os.makedirs(OUT, exist_ok=True); os.makedirs(REL, exist_ok=True)
     pm, fg, cv, cell = palm_compact(), finger_compact(), cover_compact(), D.cell()
     parts = {"palm_compact": pm, "finger_compact": fg, "cover_compact": cv, "base_test": base_test()}
     print("part              valid   size (x y z) mm          volume   ~PETG (55% fill)")
     for n, p in parts.items():
-        cq.exporters.export(D.to_bed(p), os.path.join(OUT, f"{n}_v3_DRAFT_do_not_print.stl"), tolerance=0.03, angularTolerance=0.1)
-        cq.exporters.export(p, os.path.join(OUT, f"{n}_v3_DRAFT.step"))
+        # the finger half prints upside down, standing on its flat top: no supports under the cap, no brim
+        pr = p.rotate((0, 0, 0), (1, 0, 0), 180) if n == "finger_compact" else p
+        cq.exporters.export(D.to_bed(pr), os.path.join(REL, f"{REL_NAMES[n]}.stl"), tolerance=0.03, angularTolerance=0.1)
+        cq.exporters.export(p, os.path.join(OUT, f"{n}_v3.step"))
         bb, v = p.val().BoundingBox(), p.val().Volume() / 1000
         print(f"{n:16s}  {str(p.val().isValid()):5s}  {bb.xlen:5.1f} x {bb.ylen:5.1f} x {bb.zlen:5.1f}   {v:6.1f} cm3   {v*1.27*0.55:4.0f} g")
     cq.exporters.export(cable_tube(), os.path.join(OUT, "cable_path_v3.stl"), tolerance=0.03, angularTolerance=0.1)
