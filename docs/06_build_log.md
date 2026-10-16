@@ -249,3 +249,25 @@ Same need (uncut cable, at least 15 mm of space where it leaves the cell), solve
 - Assumed, not measured: cable bend radius 11 mm (bend test asked), cable length, USB plug size, HX711 size (nominal 24 x 16).
 - Still to do whichever draft is chosen: calibration cradle redesign for the new base.
 - Housekeeping: the five v1 wrong-cell STLs were back in `cad/output/print_ready/` again; moved to `cad/archive/v1_30mm_cell/stale_print_ready/`.
+
+### 2026-10-16 — v3 compact box chosen and released for printing
+**Decision (Thomas):** option A, the compact box. He checked the cable against it: the spare cable has to be coiled ("crumpled") into the box, which he is fine with. Dish v2 is not used; its files are in `cad/archive/superseded_2026-10-16/`.
+
+**Correction:** the Nano's USB socket is micro-USB (the phone-charger type), not mini-B. The 14 × 11 mm window is kept; it is larger than a typical micro-USB plug moulding. If a cable's moulding is too fat, use a slimmer cable or file the window.
+
+**Status:** G1 not done yet (soldering still to finish).
+
+**Released** in `cad/output/print_ready/`, numbered in print order (all re-checked at export: closed solids, every overlap 0.000 mm3, palm/finger gap 3.00 mm, cable clear by 1.3 mm and 7.0 mm from the finger half):
+| File | Prints | Supports | Note |
+|---|---|---|---|
+| `1_base_test_v3.stl` | upright, open bottom on the bed | tree, on build plate only (under the box ceiling) | box + clamp zone only; tests cable, coil, boards, USB on the real cell before the full palm half |
+| `2_palm_half_v3.stl` | upright, open bottom on the bed | tree, on build plate only (under the box ceiling, about 52 x 77 mm) | grey |
+| `3_finger_half_v3.stl` | **upside down, on its flat top** (file already flipped) | none (only an 8 mm bridge and round holes) | black, no brim needed |
+| `4_cover_v3.stl` | flat, rail up | none | |
+| `fit_coupon_v2_print.stl` | already printed, G0 passed | | |
+
+Superseded outputs (round-pod parts, dish v2, earlier drafts) were moved to `cad/archive/superseded_2026-10-16/` so `print_ready/` holds only current files.
+
+**Hardware changes:** 6 × M6 × 25 + 6 washers (was 4); 4 × M3 × 10 for the cover (was 2 × M3 × 8). BOM updated. Assembly steps for v3 at the top of `docs/03_assembly.md`.
+
+**Still to do:** calibration cradle for the v3 base (not needed until G3); G1.

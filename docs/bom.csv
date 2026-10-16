@@ -2,9 +2,9 @@ section,item,qty,exact_spec,source_canada,est_cad,notes
 BUY,Load cell,1,"CZL601 / CZL601AC single-point parallel beam, 100 kg, 130 x 30 x 22 mm, 2x M6 threaded holes per end, 2.0 mV/V, 4 wires","Amazon.ca '100kg parallel beam load cell'; DEN Parts > Sensors (Force)",23,"Must have FOUR separate wires. Listing ships the cell only - no HX711."
 BUY,HX711 breakout,1,"24-bit load cell amplifier (4-pack fine)","Amazon.ca WWZMDiB HX711 4-pack",12,"Spares for soldering mistakes"
 BUY,Arduino Nano,1,"ATmega328P, CH340 USB, with USB cable","Amazon.ca 'ELEGOO Nano V3 with Mini-B USB Cables 3-Pack'; DEN Parts > Arduinos",25,"Get the version WITH cables"
-BUY,Button head screw,4,"M6 x 25 mm, ISO 7380 button head, steel","Home Depot / Princess Auto / Fastenal",3,"Two into each end of the load cell. 14 mm of thread in the cell. Heads sit flush in the counterbores."
-BUY,Washer,4,"M6, 12 mm outer diameter","Home Depot",1,"Required - the bolts pass through slots"
-BUY,Pan head screw,2,"M3 x 8 mm","Home Depot",1,"Base cover. Self-taps into the printed pilot holes."
+BUY,Button head screw,6,"M6 x 25 mm, ISO 7380 button head, steel","Home Depot / Princess Auto / Fastenal",4,"Three into each end of the load cell (v3). 12.4 mm of thread in the cell with a washer. M6 x 20 works but gives only 7.4 mm."
+BUY,Washer,6,"M6, 12 mm outer diameter","Home Depot",1,"One under each M6 head"
+BUY,Pan head screw,4,"M3 x 10 mm","Home Depot",1,"v3 box cover, 4 corners. Self-taps into the printed pilot holes."
 BUY OR OWN,Hex key 4 mm,1,"for M6 button heads","DEN / own",0,
 FROM HOME,Cord,1,"strong cord or strap, ~1 m","home",0,"Calibration: through the dome hook"
 FROM HOME,Bucket or bag,1,"holds ~40 kg","home",0,"Calibration masses"

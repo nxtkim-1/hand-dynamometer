@@ -32,7 +32,11 @@ python draw_final.py          # dimensioned drawing -> ../images/final_drawing.p
 
 Measure it and edit `CT`, `CW`, `CL`, `BOLT`, `SLOT_NEAR`, `SLOT_FAR` at the top. Re-run. The bore, bosses, ledges and slots all follow; the checks tell you if anything no longer fits.
 
-## Drafts for the uncut cable (2026-10-14, not released)
+## v3 compact box: CURRENT, released 2026-10-16 (option A, chosen over the dish)
+
+Print files are in `output/print_ready/`, numbered in print order. `python compact_base_draft.py` rebuilds them and re-runs every check.
+
+## Drafts for the uncut cable (2026-10-14)
 
 The cable leaves the cell's side 3 mm above its bottom, will not be cut, and needs at least 15 mm of space before it can turn. Two drafts, both reuse the G0-tested clamp, bolt pattern and 3 mm gap:
 

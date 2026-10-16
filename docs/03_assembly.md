@@ -1,5 +1,34 @@
 # 03 — Assembly
 
+> **Current design: v3 compact box (released 2026-10-16).** The steps directly below are the ones to follow. The older text further down is for the round-base version and is kept for history.
+
+## v3 compact box — hardware
+
+| Qty | Item | Where |
+|---|---|---|
+| 3 | M6 × 25 button head + M6 washer | Palm half → load cell's bottom end (cable end) |
+| 3 | M6 × 25 button head + M6 washer | Finger half → load cell's top end |
+| 4 | M3 × 10 pan head | Cover → box (self-tap into the printed pilots) |
+| - | double-sided foam tape | Nano on its rail, HX711 on the end wall above its shelf |
+
+Tools: 4 mm hex key, small Phillips screwdriver.
+
+## v3 compact box — steps
+
+1. **Electronics first, on the bench.** Solder, then pass G1 (a number on screen that changes when the cell is pressed) before anything goes into the box. The 4 link wires between HX711 and Nano should be long enough to reach from the end wall down to the Nano (about 8 cm).
+2. **Clean the prints.** Pull the supports out of the box through its open bottom. Run a 7 mm drill bit by hand through the six bolt holes to clear stringing.
+3. **Feed the cable end in.** Cover off, palm half standing upright. Lower the HX711 end of the cable down through the opening in the top of the box until it hangs out of the open bottom.
+4. **Lower the cell in.** Bring the cell to the open side of the palm half, cable end down. Slide it down until it sits on the ledge. The cable goes down the slot in the box top as the cell drops. Thread the 3 bolts + washers from the palm side, snug, then 1/8 turn. Paper must slide freely in the 3 mm gap on both sides.
+5. **Coil the spare cable** on the floor of the box, round loops against the walls, no tighter than a 2 cm loop. Two loops side by side, up to four layers. Do not crush or kink it.
+6. **Mount the boards.** HX711 on its shelf on the end wall, foam tape behind it. Nano on the rail of the cover with foam tape, USB end towards the window. Check the USB plug reaches the Nano through the window before closing.
+7. **Close the box.** Cover on with 4 × M3 × 10. Nothing should be pinched.
+8. **Finger half on.** Bolt it to the top end of the cell with 3 bolts + washers. Check the 3 mm seam all round the halves and above the box (paper slides everywhere). If anything rubs, stop and find out why: a rub is a force leak.
+9. **G2:** with the logger running, squeeze and release. The reading returns to zero.
+
+---
+
+## (older round-base version, kept for history)
+
 About 30 minutes. Two printed halves, four M6 bolts, one hex key.
 
 **Tools:** 4 mm hex key, small Phillips screwdriver, and the soldering kit for step 1.
