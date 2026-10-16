@@ -51,7 +51,7 @@ def fatigue_curve(peak_kg, duration_s=32): #how fast the force fades over time
         lines.append(f"{i * DT_MS},{force:.2f}")
     return lines
 
-#from here
+
 
 def make_lines(hand, test, duration_s):
     """Pick a curve for this hand. Each trial is a little different."""

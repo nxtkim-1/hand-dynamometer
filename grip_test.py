@@ -11,15 +11,15 @@ from datetime import datetime
 
 
 USE_FAKE = True
-PORT = "/dev/cu.usbserial-XXXX"
+PORT = "/dev/cu.usbserial-XXXX" #PORT는 컴퓨터가 Arduino와 통신하는 연결 경로야
 BAUD = 115200 #match with arduino code
 
 TRIALS_PER_HAND = 3
-TRIAL_SECONDS = 5
+TRIAL_SECONDS = 5 #5초 동안 짜고 3번 함
 FATIGUE_SECONDS = 32
-REST_SECONDS = 3 if USE_FAKE else 60
+REST_SECONDS = 3 if USE_FAKE else 60 #가짜 데이터는 60초동안 쉴 필요가 없어서 3초동안만 쉼
 
-SESSIONS_DIR = Path(__file__).parent / "sessions"
+SESSIONS_DIR = Path(__file__).parent / "sessions" #파일을 만드는 경로만 만들어 놈
 
 PROMPT_POSTURE = "Sit upright, elbow at 90 degrees, forearm neutral, wrist straight."
 PROMPT_GO = "Squeeze as hard as you can! Harder... harder... harder..."
@@ -46,15 +46,16 @@ def open_serial():
     return ser
 
 def countdown(seconds=3):
-    for n in range(seconds, 0, -1):
-        print(f"  {n}...")
-        plt.pause(1)
+    for n in range(seconds, 0, -1): #0초의 간격으로 -1씩 줄어듬 0은 포함 안함
+        print(f"  {n}...") #3... 2.... 1.... 
+        plt.pause(1) #1초 동안 기다리게 만듬
 
 def rest(seconds):
     if seconds > 0:
         print(f"Rest for {seconds} seconds...")
-        plt.pause(seconds)
+        plt.pause(seconds) #그만큼 기다리게 함
 
+#from here---------
 def record(ser, ax, hand, title, test, sounds):
     """Record one squeeze and draw it live. Returns the raw curve."""
     if ser is None:
@@ -112,7 +113,7 @@ def fake_reading(t):
         force = max(0, 30 - (t - 60) * 0.8)
     return f"{t * 20},{force:.1f}"   
 
-def ask_user_info():
+#def ask_user_info():
     age = int(input("Enter age: "))
     sex = input("Enter gender (male/female): ").strip().lower()
     if sex not in ["male", "female"]:
@@ -248,7 +249,7 @@ def print_summary(summary):
     for hadn in ["right", "left"]:
         m = summary[hand]
         print(f"{hand.capitalize():5} peak{m['peak_kg']:5.1f} kg | "
-              f"time to peak {m["time_to_peak_ms"]:4d} ms |"
+              f"time to peak {m['time_to_peak_ms']:4d} ms |"
               f"RFD {m['rfd_n_per_s']:6.0f} N/s")
         print(f"Fatigue index: {summary['fatigue_index_pct']:.1f}% decline over 30 s")
         print(f"Left/right ratio: {summary['ratio']:.2f} "
