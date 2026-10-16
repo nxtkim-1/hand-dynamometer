@@ -144,6 +144,8 @@ Double-check VCC and GND before plugging in. Reversed power can kill the HX711.
 
 ## Part 8 — First signal: GATE G1 (15 min)
 
+> Ready-made test sketch: `firmware/hx711_bench_test/hx711_bench_test.ino` (pins DT = D3, SCK = D2, 115200 baud). Breadboard layout: `images/breadboard_test.png`.
+
 1. Plug in the Nano.
 2. **File → Examples → HX711 → HX711_basic_example**.
 3. **Important:** near the top of that example are two lines setting the pins. Change them to match your wiring:
