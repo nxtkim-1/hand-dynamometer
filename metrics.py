@@ -76,16 +76,16 @@ def trial_metrics(readings): # readings = 악력 측정 데이터
 
 if __name__ == "__main__":
     import fake_data
-    for test, lines in [("max", fake_data.max_grip_curve(34.0)),
+    for test, lines in [("max", fake_data.max_grip_curve(34.0)), #34가 peak_kg가 됨 fake_data.py에서
                         ("fatigue", fake_data.fatigue_curve(34.0))]:
         readings = []
         for line in lines:
-            time_str, force_str = line.split(",")
-            readings.append({"time_ms": int(time_str), "force_kg": float(force_str)})
+            time_str, force_str = line.split(",") #still string so gotta write int, float next line
+            readings.append({"time_ms": int(time_str), "force_kg": float(force_str)}) #append add the number to the list
             m = trial_metrics(readings)
             print(f"{test} peak {m['peak_kg']:.1f} kg," f"time to peak {m['time_to_peak_ms']} ms," f"RFD {m['rfd_n_per_s']:.1f} N/s")
             if test == "fatigue":
                 print(f"[{test}] fatigue index {fatigue_index_pect(readings):.1f} %")
 
-            ratio, weaker = asymmetry(31.0, 34.0)
+            ratio, weaker = asymmetry(31.0, 34.0) #위에 만들어 놓은 식을 씀
             print(f"Left/right ratio {ratio:.2f}, weaker hand {weaker:.1f} % weaker")
