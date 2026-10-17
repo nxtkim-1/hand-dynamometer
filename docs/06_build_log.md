@@ -273,3 +273,10 @@ Superseded outputs (round-pod parts, dish v2, earlier drafts) were moved to `cad
 **Still to do:** calibration cradle for the v3 base (not needed until G3); G1.
 
 **2026-10-16 (evening) — bench test layout.** `images/breadboard_test.png` (`cad/draw_breadboard.py`): Nano straddling the centre gap of a standard breadboard, HX711 on a 4-pin male header in its own rows, 4 male-male jumpers: GND -> GND, DT -> D3, SCK -> D2, VCC -> 5V (same pins as the firmware). Test sketch prints raw HX711 counts at 115200 baud; pass = number changes by tens of thousands when the cell is pressed.
+
+**2026-10-16 (evening) — Jamar / Camry-style CONCEPT (not released).** Thomas asked whether a two-handle design like a commercial digital grip dynamometer could work with our parts. Concept in `cad/jamar_concept.py` + `cad/render_jamar.py`, images `images/jamar_concept_view.png` and `images/jamar_concept_section.png`, STEP in `cad/output/concept_jamar/`.
+- Why the cell moves out of the handle: a 22 mm cell plus walls inside a handle makes the grip far too fat for a two-handle layout, so the cell stands in a body beside the grip, like the display body of a commercial unit.
+- Frame (fixed): body holding the cell (cable end bolted to the back of the body, same 3-hole pattern), top and bottom arms, and a separate palm bar bolted between the arms at one of 5 positions (bar-to-bar gap 26-66 mm in 10 mm steps, outer grip span 70-110 mm). The 5 values are placeholders: Jamar has 5 lock positions and research commonly uses the 2nd, but its exact spacings were not confirmed; measure a real one if possible.
+- Finger part (moving): bracket bolted to the cell's top end, through an opening in the body, with the finger bar hanging from it; 20 mm fingertip gap behind the finger bar.
+- Checks: finger part vs fixed parts overlap 0.000 mm3, smallest gap 3.00 mm, bending zone 3.00 mm, all 5 palm-bar positions clear, cable on the fixed side. Finger-bar root at 100 kg about 9 MPa (print the finger part on its side).
+- Size about 181 x 82 x 201 mm. Not yet designed: electronics mounts inside the body, printing orientation/splitting of the frame, cradle.
