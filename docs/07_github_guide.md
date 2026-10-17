@@ -25,7 +25,7 @@ The folder you downloaded already contains git history (a hidden `.git` folder).
 3. Check the author: **Repository → Repository settings → Git config**. Your name and the email on your GitHub account must be there, or your commits won't link to your profile.
 4. Click **Publish repository**, name it `hand-dynamometer`, untick "Keep this code private", Publish.
 
-Dates in the history are real: two commits were written down on the day the work happened (taken from the build log), the rest are committed on the day they were pushed. Code drafted with Claude says so in its commit message.
+Dates in the history are the real days the work happened. The history up to 2026-10-16 was written down on 2026-10-17 from the build log, this conversation and the project folder; where an exact date wasn't recorded, the commit message says so. Code drafted with Claude says so in its commit message.
 
 ### Commit your own firmware steps on the day you do them
 

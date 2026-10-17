@@ -172,6 +172,8 @@ Double-check VCC and GND before plugging in. Reversed power can kill the HX711.
 
 ## Part 9 — The real firmware (45 min)
 
+> The four steps below are written out as complete, commented sketches in `firmware/tutorial/` (step1 to step4), each with a "Check" and a "Try" line. Type each one yourself into `firmware/my_firmware/`, get it working, and commit it that day.
+
 Now write your own version, in four steps. Test each before the next.
 
 **Step 1 — print time.** New sketch (File → New):
