@@ -56,7 +56,7 @@ def rest(seconds):
         plt.pause(seconds) #그만큼 기다리게 함
 
 #from here---------
-def record(ser, ax, hand, title, test, sounds):
+def record(ser, ax, hand, title, test, seconds):
     """Record one squeeze and draw it live. Returns the raw curve."""
     if ser is None:
         fake_lines = fake_data.make_lines(hand, test, seconds)
@@ -99,9 +99,9 @@ def record(ser, ax, hand, title, test, sounds):
             ax.set_title(title)
             plt.pause(0.1 if ser is None else 0.001)
 
-        if len(readings) == 0:
-            raise RuntimeError("No data received - check the USB cable and the PORT setting.")
-        return readings
+    if len(readings) == 0:
+        raise RuntimeError("No data received - check the USB cable and the PORT setting.")
+    return readings
 
 
 def fake_reading(t):
@@ -113,13 +113,6 @@ def fake_reading(t):
         force = max(0, 30 - (t - 60) * 0.8)
     return f"{t * 20},{force:.1f}"   
 
-#def ask_user_info():
-    age = int(input("Enter age: "))
-    sex = input("Enter gender (male/female): ").strip().lower()
-    if sex not in ["male", "female"]:
-        print("Invalid gender input. Please enter 'male' or 'female'.")
-        return ask_user_info()
-    return age, sex
 
 def make_session_path():
     SESSIONS_DIR.mkdir(exist_ok=True)
@@ -178,19 +171,15 @@ def run_grip_test(age, sex, num_samples=80):
     return readings, result
 
 
-if __name__ == "__main__":
-    age,sex = ask_user_info()
-    run_grip_test(age,sex)
 
-
-def run_protocal(ser, doeminant):
+def run_protocal(ser, dominant):
     other = "left" if dominant == "right" else "right"
     trials = []
 
     plt.ion()
     fig,ax = plt.subplots()
 
-    for tiral in range(1, TRIALS_PER_HAND + 1):
+    for trial in range(1, TRIALS_PER_HAND + 1):
         for hand in [dominant, other]:
             print(f"\n--- {hand.upper()} hand, trial {trial} of {TRIALS_PER_HAND} ---")
             print(PROMPT_POSTURE)
@@ -200,7 +189,7 @@ def run_protocal(ser, doeminant):
             readings = record(ser, ax, hand, f"{hand} hand - {trial}", "max", TRIAL_SECONDS)
             m = metrics.trial_metrics(readings)
             print(f"Relax. Peak: {m['peak_kg']:.1f} kg")
-            trials.append({"hand": hand, "trials": trial, "test": "max", "readings": readings, "metrics": m})
+            trials.append({"hand": hand, "trial": trial, "test": "max", "readings": readings, "metrics": m})
             rest(REST_SECONDS)
 
     print(f"\n--- FATIGUE TEST ({dominant.upper()} hand) ---")
@@ -223,7 +212,7 @@ def best_trial(trials, hand):
     best = None
     for t in trials: 
         if t["hand"] == hand:
-            if best is None or r["metrics"]["peak_kg"] > best["metrics"]["peak_kg"]:
+            if best is None or t["metrics"]["peak_kg"] > best["metrics"]["peak_kg"]:
                 best = t
     return best
 
@@ -246,7 +235,7 @@ def print_summary(summary):
     print("\n" + "=" * 50)
     print("GRIP TEST SUMMARY (best of 3 trials per hand)")
     print("-" * 50)  
-    for hadn in ["right", "left"]:
+    for hand in ["right", "left"]:
         m = summary[hand]
         print(f"{hand.capitalize():5} peak{m['peak_kg']:5.1f} kg | "
               f"time to peak {m['time_to_peak_ms']:4d} ms |"
