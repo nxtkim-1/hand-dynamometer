@@ -1,0 +1,28 @@
+section,item,qty,exact_spec,source_canada,est_cad,notes
+BUY,Load cell,1,"CZL601 / CZL601AC single-point parallel beam, 100 kg, 130 x 30 x 22 mm, 2x M6 threaded holes per end, 2.0 mV/V, 4 wires","Amazon.ca '100kg parallel beam load cell'; DEN Parts > Sensors (Force)",23,"Must have FOUR separate wires. Listing ships the cell only - no HX711."
+BUY,HX711 breakout,1,"24-bit load cell amplifier (4-pack fine)","Amazon.ca WWZMDiB HX711 4-pack",12,"Spares for soldering mistakes"
+BUY,Arduino Nano,1,"ATmega328P, CH340 USB, with USB cable","Amazon.ca 'ELEGOO Nano V3 with Mini-B USB Cables 3-Pack'; DEN Parts > Arduinos",25,"Get the version WITH cables"
+BUY,Button head screw,6,"M6 x 25 mm, ISO 7380 button head, steel","Home Depot / Princess Auto / Fastenal",4,"Three into each end of the load cell (v3). 12.4 mm of thread in the cell with a washer. M6 x 20 works but gives only 7.4 mm."
+BUY,Washer,6,"M6, 12 mm outer diameter","Home Depot",1,"One under each M6 head"
+BUY,Pan head screw,4,"M3 x 10 mm","Home Depot",1,"v3 box cover, 4 corners. Self-taps into the printed pilot holes."
+BUY OR OWN,Hex key 4 mm,1,"for M6 button heads","DEN / own",0,
+FROM HOME,Cord,1,"strong cord or strap, ~1 m","home",0,"Calibration: through the dome hook"
+FROM HOME,Bucket or bag,1,"holds ~40 kg","home",0,"Calibration masses"
+FROM HOME,Zip tie,1,"standard, 200 mm","home / DEN",0,"Calibration: holds the BASE POD in the cradle. Never around the black half."
+PRINT (RPC),Palm half,1,"PETG grey, palm_half_print.stl","Rapid Prototyping Centre, $0.07/g",6,"~86 g"
+PRINT (RPC),Finger half,1,"PETG black, finger_half_print.stl","RPC",6,"~78 g"
+PRINT (RPC),Cover,1,"PETG grey, cover_print.stl","RPC",1,"~8 g"
+PRINT (RPC),Fit coupon,1,"PETG any colour, fit_coupon_print.stl","RPC",3,"~38 g. Print FIRST - test your load cell fits before printing the halves."
+PRINT (RPC),Calibration cradle,1,"PLA or PETG, 15 % infill, calibration_cradle_print.stl","RPC",7,"~100 g at 15 % infill. Or make a V-block from two pieces of 2x4 wood."
+BORROW (DEN),Soldering station + solder,1,,"DEN Equipment",0,
+BORROW (DEN),Wire strippers + flush cutters,1,,"DEN",0,
+BORROW (DEN),Multimeter,1,,"DEN",0,"Continuity checks; HX711 should see ~5 V"
+BORROW (DEN),Jumper wires,4,,"DEN Parts > Cables",0,
+BORROW (DEN),Heat shrink + zip ties,1,,"DEN",0,"Strain relief on the load cell wires"
+BORROW (DEN),Calipers,1,"digital","DEN Equipment > Measuring Devices",0,"Measure the load cell the day it arrives"
+BORROW (DEN),Bench vise,1,"holds ~40 kg","DEN",0,"Clamps the calibration cradle"
+BORROW (DEN),Scale,1,"reads to 35 kg+","DEN Equipment > Scales",0,"Weigh every calibration mass"
+BORROW (DEN),Calibration weights,1,"0-35 kg in ~5 kg steps","DEN Equipment > Calibration (or water jugs / gym plates)",0,
+,,,,,,
+TOTAL,Buy,,,,65,"Load cell, HX711 pack, Nano pack, fasteners"
+TOTAL,Printing,,,,23,"About 310 g at $0.07/g, including coupon and cradle"
