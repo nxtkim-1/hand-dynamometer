@@ -16,7 +16,31 @@ You don't need to learn the command line. **GitHub Desktop** is a free app that 
 2. **Install GitHub Desktop** from desktop.github.com. Sign in with your account.
 3. That's it.
 
-## Creating the repo (one person does this)
+## This repo already has a history (read this first)
+
+The folder you downloaded already contains git history (a hidden `.git` folder). Don't create a new repository on top of it.
+
+1. Unzip it somewhere sensible, e.g. `Documents/hand-dynamometer/`.
+2. GitHub Desktop: **File → Add local repository** → choose the folder. It recognises the history.
+3. Check the author: **Repository → Repository settings → Git config**. Your name and the email on your GitHub account must be there, or your commits won't link to your profile.
+4. Click **Publish repository**, name it `hand-dynamometer`, untick "Keep this code private", Publish.
+
+Dates in the history are real: two commits were written down on the day the work happened (taken from the build log), the rest are committed on the day they were pushed. Code drafted with Claude says so in its commit message.
+
+### Commit your own firmware steps on the day you do them
+
+`docs/11_firmware_tutorial.md` Part 9 has you write the firmware yourself in four steps. Make each one a commit, the day you actually do it, so the history shows your real progress:
+
+| When you finish | Save as | Commit message |
+|---|---|---|
+| Step 1, print time | `firmware/my_firmware/my_firmware.ino` | `my firmware step 1: print millis() over serial` |
+| Step 2, read the raw sensor | same file | `my firmware step 2: read raw HX711 counts` |
+| Step 3, zero it | same file | `my firmware step 3: tare at startup` |
+| Step 4, full version (CSV, `t` command) | same file | `my firmware step 4: CSV output and tare command` |
+
+If something breaks and you fix it, that's a commit too (`fix: ...`). Those are the commits worth talking about in an interview.
+
+## Creating the repo (only if you are starting from an empty folder)
 
 1. Put this whole project folder somewhere sensible, e.g. `Documents/hand-dynamometer/`.
 2. In GitHub Desktop: **File → Add local repository** → choose that folder. It'll say it isn't a git repository yet and offer to **create a repository** here. Click that.
