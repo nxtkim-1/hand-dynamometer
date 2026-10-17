@@ -48,7 +48,7 @@ def rfd_n_per_s(readings, window_ms=100): #힘이 얼마나 빠른 속도로 증
     slope, intercept = fit_line(xs, ys) #둘중에 slope만 필요해서 intercept는 필요없다
     return slope
 
-def fatigue_index_pect(readings, squeeze_ms = 30000, final_window_ms = 1000): #힘을 30초 동안 쓰고 마지막 1초만 써
+def fatigue_index_pct(readings, squeeze_ms = 30000, final_window_ms = 1000): #힘을 30초 동안 쓰고 마지막 1초만 써
     """Percent drop form the peak to the average of the last second of a 30s squeeze."""
     peak_kg = find_peak(readings)["force_kg"]
     end_ms = find_onset(readings)["time_ms"] + squeeze_ms #힘주고 시작한뒤에 세기 시작해야돼
