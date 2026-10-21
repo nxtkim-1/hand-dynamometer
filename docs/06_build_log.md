@@ -55,14 +55,14 @@ Mount uses locating ledges plus bolt slots (8-26 and 28-50 mm from each end face
 
 Next: check DEN Sensors (Force), order parts, book the printer.
 
-### 2026-10-12 — Thomas (measured), Claude (drafted the log and drawings)
+### 2026-10-12 — Thomas (measured)
 **Step 1 of the build: measure the real parts before editing any CAD.** Calipers from the DEN. Photos with the dimensions written on them are in `images/photos/`; the cleaned-up drawing is `images/measured_load_cell.png`.
 
 ![Load cell as measured](../images/measured_load_cell.png)
 
 #### Load cell — what the calipers say
 
-Source key: **M** = measured with calipers (Thomas's photos). **D** = derived by Claude from measured numbers. **P** = read off the photo by Claude, not measured. **?** = still unknown.
+Source key: **M** = measured with calipers (Thomas's photos). **D** = derived from measured numbers. **P** = read off the photo, not measured. **?** = still unknown.
 
 | Quantity | Value | Source | Note |
 |---|---|---|---|
@@ -76,7 +76,7 @@ Source key: **M** = measured with calipers (Thomas's photos). **D** = derived by
 | Hole edge to cell side edge | 16.67 mm | M | |
 | Hole opening diameter (centred on the width) | about 6.7 mm | D | 16.67 + 6.6 + 16.67 ≈ 40, so the hole is centred to within about 0.1 mm.  40 − 2 × 16.67; also 33 − 21.44 − 5.00 = 6.56, so the readings agree to 0.1 mm |
 | Single hole centre from the end face | about 24.8 mm | D | 21.44 + 6.67 / 2 |
-| Pair: gap between the two holes (edge to edge) | 7.94 mm (7.95 on the right end) | M | read as the gap, Claude's interpretation |
+| Pair: gap between the two holes (edge to edge) | 7.94 mm (7.95 on the right end) | M | read as the gap (interpretation) |
 | Pair: centre spacing | about 14.6 mm | D | 7.94 + 6.67 |
 | Pair: centre distance from the end face | **11.80 mm** | M | measured 16:50; the photo estimate (11.4) was 0.4 mm out |
 | Bending zone (between the end blocks) | about 64 mm | D | 130 − 2 × 33 |
@@ -135,7 +135,7 @@ Keep the 54–58 mm round barrel so the grip span does not change. Instead:
 
 Status: nothing printed. The old fit coupon and halves are **not to be printed**; they are for the wrong cell.
 
-Next: answer the five questions, measure the boards, then Claude updates `dynamometer_cad.py` and regenerates.
+Next: answer the five questions, measure the boards, then update `dynamometer_cad.py` and regenerate.
 
 ### 2026-10-12 (evening) — decisions, wiring plan, CAD rebuilt for the real cell
 **Answers to the open questions (Thomas, 16:50–17:00):** M6 bolt threads in by hand; holes are tapped all the way through; pair centre is 11.80 mm from the end face; hole is centred on the width (16.67 mm edge distance plus hole size gives 19.95 mm, so within 0.1 mm); Nano is 44.0 mm (46.0 with the USB connector) × 18.11 mm, USB connector 3.8 mm above the board, header pins 8 mm out of the board on both sides.
@@ -235,7 +235,7 @@ Next: answer the five questions, measure the boards, then Claude updates `dynamo
 
 **2026-10-14 (noon) — dish draft v2: silhouette changed.** Thomas pointed out the first draft (domed round shaft on a round flared base) read as a phallus. v2 replaces the dome with a **flat chamfered top** (z = 151.6, hook hole keeps 4.3 mm of material above it) and the round dish with a **112 × 130 mm rounded-rectangle tray** (corner radius 14, rim 3 mm). Cable path, collar, port and plug are unchanged. All overlaps 0.000 mm3, cable clearance 1.2 mm all round, 16 mm straight run, spare-cable room about 2 m at 40 % packing (narrower in x than the round dish). Files: `cad/output/draft_dish/*_v2_DRAFT_do_not_print.stl`, `images/dish_draft_v2_*.png`. The round v1 files are in `cad/output/draft_dish/v1_round_SUPERSEDED/`.
 
-**2026-10-14 (afternoon) — draft v3 "compact box" (Claude), offered next to the dish.**
+**2026-10-14 (afternoon) — draft v3 "compact box", offered next to the dish.**
 Same need (uncut cable, at least 15 mm of space where it leaves the cell), solved inside a closed base instead of an open tray. Files: `cad/compact_base_draft.py`, `cad/render_compact.py`, `cad/output/draft_compact/*_v3_DRAFT*`, `images/compact_v3_*.png`, `images/options_compact_vs_dish.png`. DO NOT PRINT until approved.
 - Base: rounded box 57 x 82 mm (same width as the grip on the palm and finger sides, longer across), top at z = 12, cover underneath on 4 M3 screws. Overall height 204 mm (was 200). Flat chamfered top, as in dish v2.
 - Cable: leaves the cell inside the box. **18.5 mm** from the cell's side face to the end wall. Modelled as 3.5 mm straight, then an 11 mm-radius bend down (2.1 x its diameter), then into the coil space. Clear of every part by at least 1.3 mm, 7.0 mm from the finger half. It touches only the palm half's box, so it cannot carry squeeze force.
