@@ -2,9 +2,9 @@
 
 ## The honest framing first
 
-This repo arrived finished. If you print the STLs, upload the firmware, run the scripts and ship it, you will have a working device and **almost no transferable skill** — and an interviewer will find that out in about ninety seconds, because the questions are never "did it work?" They are *"why is the load cell vertical?"*, *"why slots instead of holes?"*, *"what does your fit residual tell you?"*
+This repo is already finished. If you print the STLs, upload the firmware, run the scripts and ship it, you will have a working device and **almost no transferable skill** — and an interviewer will find that out in about ninety seconds, because the questions are never "did it work?" They are *"why is the load cell vertical?"*, *"why slots instead of holes?"*, *"what does your fit residual tell you?"*
 
-So treat the repo as a **reference implementation**, not a deliverable. The plan below has you rebuild each piece yourself and check your version against mine. It costs maybe eight extra hours across eight weeks, and it's the difference between "I built a dynamometer" and being able to defend every decision in it.
+So treat the repo as a **reference implementation**, not a deliverable. The plan below has you rebuild each piece yourself and check your version against the reference implementation in this repo. It costs maybe eight extra hours across eight weeks, and it's the difference between "I built a dynamometer" and being able to defend every decision in it.
 
 ---
 
@@ -53,7 +53,7 @@ Don't copy `grip_firmware.ino`. Build up to it in four steps, testing each:
 3. **Read the sensor.** Use the HX711 library example. Get a raw number changing.
 4. **Write your own.** From scratch, with the library: tare on startup, subtract the offset, divide by a constant, print `t_ms,raw,net,force_kg`, hold ~10 Hz.
 
-Then diff yours against mine. Where they differ, work out who is right — sometimes it'll be you.
+Then diff yours against the reference. Where they differ, work out which is right — sometimes it'll be yours.
 
 **Then extend it.** Two small features that force real understanding:
 - Add a serial command `c` that prints the current `COUNTS_PER_KG`.
@@ -65,7 +65,7 @@ Then diff yours against mine. Where they differ, work out who is right — somet
 
 ## Part 3 — Python: pyserial
 
-**Exercise — write a 20-line logger before you look at mine:**
+**Exercise — write a 20-line logger before you look at `software/logger.py`:**
 
 ```python
 import serial, csv, time
@@ -89,7 +89,7 @@ Get that working, then read `logger.py` and ask what each extra thing is for: wh
 
 ## Part 4 — NumPy and Matplotlib
 
-**Exercise — do the calibration fit by hand before running mine.** Given eight `(mass, counts)` pairs:
+**Exercise — do the calibration fit by hand before running `software/calibrate.py`.** Given eight `(mass, counts)` pairs:
 
 ```python
 import numpy as np, matplotlib.pyplot as plt
@@ -169,7 +169,7 @@ Fold these into the daily plan without adding weeks:
 | 1 | Git conflict exercise | 20 min |
 | 2 | Firmware from scratch, steps 1–4 | 2 h |
 | 2 | CadQuery rungs 1–2 | 1.5 h |
-| 3 | 20-line logger before reading mine | 1 h |
+| 3 | 20-line logger before reading the reference logger | 1 h |
 | 3 | Slicer comparison exercise | 45 min |
 | 4 | Fit by hand with `np.polyfit` | 1 h |
 | 5 | CadQuery rungs 3–4 | 5 h |
