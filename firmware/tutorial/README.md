@@ -2,7 +2,7 @@
 
 Four small programs. Each one adds one idea to the one before, and step 4 is the full
 firmware (`../grip_firmware/grip_firmware.ino`, v1.0) plus a "waiting for HX711" message.
-Written with Claude as teaching material on 2026-10-16.
+Written as teaching material on 2026-10-16.
 
 | Step | Folder | Adds | You know it works when |
 |---|---|---|---|
