@@ -96,7 +96,7 @@ This replaced an earlier version with a base plate, a palm wall and a triangular
 
 ## 4. Why the CAD is a Python script and not a FreeCAD file
 
-You asked whether you should have used FreeCAD. The answer is: you could, and FreeCAD will open the `.step` files we produce. But for this project a script is better, and here is why.
+Why a script instead of FreeCAD: FreeCAD can open the `.step` files this repo produces, but for this project a script is better, and here is why.
 
 Every dimension in the design depends on the load cell — and load cells from different suppliers vary in length, hole spacing and thread. In a GUI CAD tool, changing the cell means editing a dozen sketches and hoping you caught every dependency. In `dynamometer_cad.py` the cell is six numbers at the top of the file; everything downstream (bolt hole positions, boss heights, carrier plate size, bolt lengths) is *computed*. Change six numbers, run one command, get new STLs.
 
