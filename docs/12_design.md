@@ -159,3 +159,11 @@ The CAD can prove the geometry; only the built device proves the measurement:
 - Calibration comes out linear, and a mass you didn't calibrate with reads within 2 %.
 
 If any of those fail, the first suspect is always the seam — something touching that shouldn't be.
+
+## CAD files and the Onshape document
+
+The four v3 print files (`1_base_test_v3.stl`, `2_palm_half_v3.stl`, `3_finger_half_v3.stl`, `4_cover_v3.stl`) are also imported into a private Onshape document, **Hand Dynamometer v3**: https://cad.onshape.com/documents/14d87426a9f5f0f89acb0ff1/w/cbee608c747a369f00bd9d19 (sign in with the t.kim.min8@gmail.com Student account). Each file is its own Part Studio tab, imported in millimetres.
+
+A note on what that document is: STL imports are **mesh geometry** — fine for looking at, measuring, and assembling around, but not native parametric Onshape features. You can't edit a dimension and have the part update; changing the design means remodeling on top of the mesh or going back to a script.
+
+On scripts: the parametric CAD script in this repo (`cad/dynamometer_cad.py`) is the **v2** design. The v3 script was written inside the Claude chat's code tool and was never committed — PR #1 was closed unmerged and the branch deleted. A search of the chat's downloadable files (its zip snapshots and file space) turned up only v2 snapshots plus the v3 STLs and renders, so the v3 script wasn't recovered there. If a native, editable v3 is wanted, the practical route is to rebuild it parametrically from the v3 spec in this document and the imported meshes as reference.
