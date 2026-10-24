@@ -282,3 +282,6 @@ Superseded outputs (round-pod parts, dish v2, earlier drafts) were moved to `cad
 - Size about 181 x 82 x 201 mm. Not yet designed: electronics mounts inside the body, printing orientation/splitting of the frame, cradle.
 
 **2026-10-16 (late) — firmware tutorial and git history.** The firmware first existed as one finished file (v1.0), which skipped the learning steps. Added `firmware/tutorial/`: four commented sketches (hello serial, read raw, tare, CSV + `t` command) that build up to v1.0, each with a check and an exercise; all six sketches compile against stub headers. Each step gets typed into `firmware/my_firmware/` and committed on the day it works. The project folder became a git repository; the history up to today was written down from this log, with each commit on the day the work happened.
+
+
+**2026-10-24 — docs brought up to v3.** `docs/12_design.md`, `docs/02_printing.md` and the README now describe the released v3 design (compact box base, flat top, 57 × 82 mm footprint, ~204 mm tall); the v2 design text stays in the archive. The Jamar-style concept now has its own page, `docs/13_jamar_concept.md`, still concept-only. v3 CAD and renders live in the design chat's packaged zip; regenerating them into the repo is an open item.
