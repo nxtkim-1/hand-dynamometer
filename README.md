@@ -1,11 +1,10 @@
 # Hand Dynamometer — a 3D-printed grip-strength meter with a calibration report
 
-A handheld grip-strength instrument: a barrel-shaped handle split into two halves around a **CZL601 100 kg load cell**, read by an **HX711** amplifier and an **Arduino Nano**, logged to a laptop. Calibrated against known masses through the same load path as a real squeeze.
+A handheld grip-strength instrument built around a **CZL601 100 kg load cell**. Its barrel-shaped handle splits into two halves; an **HX711** amplifier and **Arduino Nano** read the load cell and send the data to a laptop. Calibration uses known masses through the same load path as a real squeeze.
 
-**Current version: v3** — the split-grip barrel handle now has a **flat chamfered top** and stands on a **closed 57 × 82 mm electronics box** (~204 mm tall) that holds the Nano, the HX711 and the coiled uncut cable. All four v3 parts are now **native, from-scratch parametric models** in Onshape — **[Hand Dynamometer v3](https://cad.onshape.com/documents/14d87426a9f5f0f89acb0ff1/w/cbee608c747a369f00bd9d19/e/3240b9b82e6414542f1a770b)** (private): palm half, finger half, bay cover and base test, each rebuilt feature-by-feature (sketches, revolves, extrudes, bolt pattern) from `cad/dynamometer_cad.py` and the v3 mesh measurements. The Jamar-style two-handle concept — a possible **v4 prototype** (`docs/13_jamar_concept.md`, `cad/jamar_concept.py`) — is modeled in the same document as a separate part studio (frame, palm bar, finger part, cover). The renders below are from v2 (dome top, round flared base); v3 renders are pending, and the superseded v2 CAD files are kept in `cad/archive/superseded_2026-10-16/`.
+**Current version: v3** — The split-grip barrel handle has a **flat chamfered top** and sits on a **closed 57 × 82 mm electronics box** (~204 mm tall) for the Nano, HX711 and coiled, uncut cable. All four v3 parts are **native, from-scratch parametric models** in Onshape — **[Hand Dynamometer v3](https://cad.onshape.com/documents/14d87426a9f5f0f89acb0ff1/w/cbee608c747a369f00bd9d19/e/3240b9b82e6414542f1a770b)** (private). The palm half, finger half, bay cover and base test were rebuilt feature by feature (sketches, revolves, extrudes and bolt pattern) from `cad/dynamometer_cad.py` and the v3 mesh measurements. The Jamar-style two-handle concept, a possible **v4 prototype** (`docs/13_jamar_concept.md`, `cad/jamar_concept.py`), is modeled in the same document as a separate part studio with a frame, palm bar, finger part and cover. The renders below show v2 (dome top, round flared base); v3 renders are still pending. Superseded v2 CAD files remain in `cad/archive/superseded_2026-10-16/`.
 
-**CAD status (2026-10-24):** all five Onshape part studios regenerate cleanly; the earlier mesh imports remain in the document as reference-only tabs. Known open items, documented rather than silently resolved: the bay-cover pedestal overlaps the palm's bay slab by ~2 mm in the models (both follow their own meshes — check at assembly); the finger-half model follows the v2 parametric length while the v3 finger mesh is ~19 mm shorter, so groove/hook placement on the physical v3 finger is unverified; the base-test model approximates the pocket-to-shelf ramp with the palm's boss/ledge/gusset profile.
-
+**CAD status:** All five Onshape part studios regenerate cleanly as native parametric models; known open items are tracked in [docs/14_cad_open_items.md](docs/14_cad_open_items.md).
 ## Screenshots
 
 Onshape proof captures for the v3 parts and Jamar concept:
@@ -20,14 +19,14 @@ Onshape proof captures for the v3 parts and Jamar concept:
 
 ## How it works
 
-The grip is split lengthwise. The **grey palm half** bolts to the load cell's bottom end; the **black finger half** bolts to its top end. A 3 mm seam keeps them apart everywhere, so when you squeeze, **all of the force has to pass through the load cell.**
+The grip splits lengthwise. The **grey palm half** bolts to the bottom of the load cell, and the **black finger half** bolts to its top. A 3 mm seam keeps the halves apart, so every squeeze has to pass through the load cell.
 
 
-Full explanation of every feature, and how the design was arrived at: **[`docs/12_design.md`](docs/12_design.md)**.
+A full explanation of the features and design process is in **[`docs/12_design.md`](docs/12_design.md)**.
 
 ## Why
 
-Grip strength is a validated clinical measure — a diagnostic criterion for sarcopenia (EWGSOP2: < 27 kg men, < 16 kg women), and in the PURE study of ~140,000 people it predicted mortality better than systolic blood pressure. The clinical standard device costs several hundred dollars and reports one number; this one logs the whole force–time curve at 10 Hz.
+Grip strength is a validated clinical measure and a diagnostic criterion for sarcopenia (EWGSOP2: < 27 kg for men, < 16 kg for women). In the PURE study of about 140,000 people, it predicted mortality better than systolic blood pressure. A clinical standard device costs several hundred dollars and reports one number; this one logs the full force–time curve at 10 Hz.
 
 **Educational and non-diagnostic. Not a medical device.**
 
@@ -47,7 +46,7 @@ Grip strength is a validated clinical measure — a diagnostic criterion for sar
 
 ## Grip test app
 
-The Python app at the top level runs a standardized grip test against the device (or against fake data while the hardware is being built):
+The top-level Python app runs a standardized grip test on the device, or on fake data while the hardware is being built:
 
 | File | What it does |
 |---|---|
@@ -111,5 +110,4 @@ images/     renders, drawings, and your photos
 ## License
 
 Code: MIT. Hardware design files and documentation: CC BY 4.0.
-
 
