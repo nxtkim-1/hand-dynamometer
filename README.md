@@ -2,6 +2,8 @@
 
 A handheld grip-strength instrument: a barrel-shaped handle split into two halves around a **CZL601 100 kg load cell**, read by an **HX711** amplifier and an **Arduino Nano**, logged to a laptop. Calibrated against known masses through the same load path as a real squeeze.
 
+**Current version: v3** — the split-grip barrel handle now has a **flat chamfered top** and stands on a **closed 57 × 82 mm electronics box** (~204 mm tall) that holds the Nano, the HX711 and the coiled uncut cable. The renders below are from v2 (dome top, round flared base); v3 renders are pending, and the superseded v2 CAD files are kept in `cad/archive/superseded_2026-10-16/`. A Jamar-style two-handle concept is on file as a possible **v4 prototype** — `docs/13_jamar_concept.md` — kept separate as a side project for now.
+
 ![Assembled](images/final_assembled.png)
 
 ## How it works
@@ -84,7 +86,7 @@ firmware/   grip_firmware/       Arduino sketch
 software/   logger.py, calibrate.py, analyze_hold.py   serial logging and calibration
 grip_test.py, metrics.py, grip_compare.py, fake_data.py   the grip test app (above)
 data/       dodds2014_norms.csv, example calibration points
-docs/       everything above
+docs/       everything above, incl. 13_jamar_concept.md (v4 prototype concept)
 images/     renders, drawings, and your photos
 ```
 
@@ -100,3 +102,4 @@ images/     renders, drawings, and your photos
 ## License
 
 Code: MIT. Hardware design files and documentation: CC BY 4.0.
+
