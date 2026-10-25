@@ -137,7 +137,12 @@ def plot_on_centiles(result, norms=None, save_path=None):
     ax.legend()
     if save_path is not None:
         fig.savefig(save_path)
-    plt.show()
+    if save_path is not None:
+        fig.savefig(save_path)
+    if show:
+        plt.show()
+    else:
+        plt.close(fig)
  
  
 if __name__ == "__main__":
