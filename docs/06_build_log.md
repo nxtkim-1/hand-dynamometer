@@ -55,14 +55,14 @@ Mount uses locating ledges plus bolt slots (8-26 and 28-50 mm from each end face
 
 Next: check DEN Sensors (Force), order parts, book the printer.
 
-### 2026-10-12 — Thomas (measured)
+### 2026-10-12 — measured
 **Step 1 of the build: measure the real parts before editing any CAD.** Calipers from the DEN. Photos with the dimensions written on them are in `images/photos/`; the cleaned-up drawing is `images/measured_load_cell.png`.
 
 ![Load cell as measured](../images/measured_load_cell.png)
 
 #### Load cell — what the calipers say
 
-Source key: **M** = measured with calipers (Thomas's photos). **D** = derived from measured numbers. **P** = read off the photo, not measured. **?** = still unknown.
+Source key: **M** = measured with calipers (from photos). **D** = derived from measured numbers. **P** = read off the photo, not measured. **?** = still unknown.
 
 | Quantity | Value | Source | Note |
 |---|---|---|---|
@@ -138,11 +138,11 @@ Status: nothing printed. The old fit coupon and halves are **not to be printed**
 Next: answer the five questions, measure the boards, then update `dynamometer_cad.py` and regenerate.
 
 ### 2026-10-12 (evening) — decisions, wiring plan, CAD rebuilt for the real cell
-**Answers to the open questions (Thomas, 16:50–17:00):** M6 bolt threads in by hand; holes are tapped all the way through; pair centre is 11.80 mm from the end face; hole is centred on the width (16.67 mm edge distance plus hole size gives 19.95 mm, so within 0.1 mm); Nano is 44.0 mm (46.0 with the USB connector) × 18.11 mm, USB connector 3.8 mm above the board, header pins 8 mm out of the board on both sides.
+**Answers to the open questions (measured 16:50–17:00):** M6 bolt threads in by hand; holes are tapped all the way through; pair centre is 11.80 mm from the end face; hole is centred on the width (16.67 mm edge distance plus hole size gives 19.95 mm, so within 0.1 mm); Nano is 44.0 mm (46.0 with the USB connector) × 18.11 mm, USB connector 3.8 mm above the board, header pins 8 mm out of the board on both sides.
 
-**Cable exit (from Thomas's close-up photo):** the cable leaves one of the long 130 × 22 side faces, not the 3-hole face and not an end face. The hole edge is 3.00 mm from the end face and 8.5 mm from the nearest edge, so with a 5.13 mm cable the hole is centred on the 22 mm thickness (8.5 + 5.13 + about 8.4 = 22). Hole centre is about 5.6 mm from the end face. This end is the fixed (cable) end and becomes the **lower, palm-half end**.
+**Cable exit (from a close-up photo):** the cable leaves one of the long 130 × 22 side faces, not the 3-hole face and not an end face. The hole edge is 3.00 mm from the end face and 8.5 mm from the nearest edge, so with a 5.13 mm cable the hole is centred on the 22 mm thickness (8.5 + 5.13 + about 8.4 = 22). Hole centre is about 5.6 mm from the end face. This end is the fixed (cable) end and becomes the **lower, palm-half end**.
 
-**Decisions made (Thomas):**
+**Decisions:**
 | Decision | Options offered | Chosen |
 |---|---|---|
 | Handle vs the 40 mm cell | A slim round (side gap 1.5) / **B roomy round (3 mm all round)** / C oval 52 × 61 | **B** |
@@ -164,7 +164,7 @@ Next: answer the five questions, measure the boards, then update `dynamometer_ca
 
 ## 2026-10-13 - P1 (round bore) and R1 (jacket trim + eyelet) built
 
-**Decisions (Thomas):** P1 = round dia 50 electronics bore. R1 = trim the cable jacket and clamp the wires. HX711 sized from online nominal values (24 x 16 mm; NOT measured - measure it when it arrives and tell me).
+**Decisions:** P1 = round dia 50 electronics bore. R1 = trim the cable jacket and clamp the wires. HX711 sized from online nominal values (24 x 16 mm; NOT measured - measure when it arrives).
 
 **What changed in the CAD** (`cad/dynamometer_cad.py`, picture: `images/pod_layout.png`)
 - Bore 46 -> 50 mm. Nano corners reach 23.79 mm, so 1.21 mm spare. Wall around the bore is >= 2.5 mm everywhere.
@@ -182,23 +182,23 @@ Next: answer the five questions, measure the boards, then update `dynamometer_ca
 **Open:** HX711 real size; plug moulding size; whether Nano header pins are really 8 mm both sides after soldering wires (tips at z -24.9).
 
 ### 2026-10-13 — decisions, a near-miss on the coupon file, HX711 size, cable plan reopened
-**Decisions (Thomas):**
+**Decisions:**
 | Topic | Decision |
 |---|---|
 | Pod | **P1**: everything inside the handle, round bore about ∅50 mm, boards on standoffs |
-| Cable | **R1 rejected** (it meant cutting back the cable jacket). Thomas does not want the load cell cable cut or trimmed. Cable plan reopened, see below. |
-| HX711 size | use what is published online: **24 × 16 mm** board (the reference image Thomas supplied). Other listings give 22 × 22 and 34 × 20 × 3 mm, so the pod will be designed around a **34 × 20 × 6 mm envelope** so any of them fits. Verify with calipers when convenient. |
+| Cable | **R1 rejected** (it meant cutting back the cable jacket). Constraint: the load cell cable must not be cut or trimmed. Cable plan reopened, see below. |
+| HX711 size | use what is published online: **24 × 16 mm** board (the supplier's reference image). Other listings give 22 × 22 and 34 × 20 × 3 mm, so the pod will be designed around a **34 × 20 × 6 mm envelope** so any of them fits. Verify with calipers when convenient. |
 
-**Near-miss:** the Bambu Studio screenshot sent at 12:59 showed the **old** fit coupon (82 mm tall, one long slot) on the plate, not the new one (62 mm tall, three round counterbored holes). Both files were called `fit_coupon_print.stl`. I confirmed the file Thomas had sent back to me is the new one (57.9 × 58.3 × 62.0 mm, 46.6 cm³) and the old one is 55.6 × 58.0 × 82.0 mm (53.7 cm³). To stop the mix-up the new file is now named **`fit_coupon_v2_print.stl`** and the CAD script writes `_v2_print.stl` for every part. Rule: before any print, check the object on the plate against the table below.
+**Near-miss:** the Bambu Studio screenshot sent at 12:59 showed the **old** fit coupon (82 mm tall, one long slot) on the plate, not the new one (62 mm tall, three round counterbored holes). Both files were called `fit_coupon_print.stl`. The file used for the print was confirmed to be the new one (57.9 × 58.3 × 62.0 mm, 46.6 cm³); the old one is 55.6 × 58.0 × 82.0 mm (53.7 cm³). To stop the mix-up the new file is now named **`fit_coupon_v2_print.stl`** and the CAD script writes `_v2_print.stl` for every part. Rule: before any print, check the object on the plate against the table below.
 
 | File | Size on the plate | What you see |
 |---|---|---|
 | NEW `fit_coupon_v2_print.stl` | 57.9 × 58.3 × 62.0 mm | three separate round holes, each with a round counterbore |
 | OLD `fit_coupon_print.stl` | 55.6 × 58.0 × 82.0 mm | one tall slot |
 
-**Cable: assumption found to be wrong.** docs/00 assumed a lead of about 250 mm. Thomas's photos show a much longer cable (a loop in a hand, with a zip tie). Not measured yet. The cable length decides what is physically possible:
+**Cable: assumption found to be wrong.** docs/00 assumed a lead of about 250 mm. Photos show a much longer cable (a loop in a hand, with a zip tie). Not measured yet. The cable length decides what is physically possible:
 - Pod volume is about 73 cm³ (∅50 × 37). Nano plus HX711 take about 20 cm³ of that. A 5.13 mm cable needs roughly 0.4 cm³ per cm once bend radius is allowed for, so only about 30 cm of spare cable can be coiled inside.
-- Anything longer must be stored somewhere else, or the electronics must move out of the handle, or the cable gets cut. Options and recommendation were sent to Thomas; waiting on the cable length.
+- Anything longer must be stored somewhere else, or the electronics must move out of the handle, or the cable gets cut. Options: store the spare cable elsewhere, move the electronics out of the handle, or cut the cable. Open until the cable length is measured.
 
 **Open:** cable length (exit to bare tip, uncut); USB plug moulding width and height (asked twice, still missing); which cable option; whether to move G2 to about Oct 23 and G3 to about Oct 30.
 
@@ -207,13 +207,13 @@ Next: answer the five questions, measure the boards, then update `dynamometer_ca
 **Repo state found and cleaned (2026-10-13, 17:05):** the repo already held a first draft of the **P1 pod** (∅50 bay, Nano on a central rail, HX711 on edge, M3 cover bosses; `cad/draw_pod.py`, `images/pod_layout.png`, parts in `cad/output/print_after_G0/`). I re-ran every check on it and they pass (Nano and HX711 clear of the walls, USB plug clears the window, six bolts clear, halves never touch, bending-zone gap 3.00 mm). But that draft was built for **R1**: the cell's wires are trimmed back to a 3 mm bundle and pass through a 4.6 mm eyelet. A 5.13 mm uncut jacket does not fit that eyelet or the 3 mm gap beside the cell, so the cable route and the pod ceiling must be redone once the cable option is chosen. The main parts therefore stay **not released**. Four stale **wrong-cell** files (`palm_half_print.stl`, `finger_half_print.stl`, `cover_print.stl`, `calibration_cradle_print.stl`, identical to the v1 archive) had reappeared in `cad/output/print_ready/`; they were deleted. `print_ready/` now holds only `fit_coupon_v2_print.stl`.
 
 ### 2026-10-14 — G0 PASS, and a bigger base for the uncut cable (DRAFT)
-**G0 result (Thomas, fit coupon on the real cell): PASS.**
+**G0 result (fit coupon on the real cell): PASS.**
 - Three M6 × 20 bolts went in with no wobble. Paper and feeler gauge slid freely in the 3 mm gap. Nothing cracked.
-- Print used the RPC preset (0.20 mm Strength, PETG Basic, 6 walls, 25 % grid). Thomas found the surface rough ("seems pretty cheap") and has budget for slower or finer prints on the real parts.
+- Print used the RPC preset (0.20 mm Strength, PETG Basic, 6 walls, 25 % grid). The surface came out rough ("seems pretty cheap"); budget allows slower or finer prints on the real parts.
 - Cell was wired to the HX711 for the photo. Before powering: E+/E− about 405 Ω and A+/A− about 350 Ω.
 - Lesson: the real parts assume **M6 × 25** (14 mm of thread in the cell). M6 × 20 gives only about 9 mm, and less with washers. Use M6 × 25 plus washers on the real parts.
 
-**Thomas's concern: the cable.** It will not be cut, it cannot bend tightly, and he wants at least 1.5 cm of free space where it leaves the side of the cell. He asked for a version with a bigger base.
+**Open concern: the cable.** It will not be cut, it cannot bend tightly, and at least 1.5 cm of free space is needed where it leaves the side of the cell. A version with a bigger base was requested.
 
 **Draft built: "dish" base** (`cad/dish_base_draft.py`, renders `images/dish_draft_*.png`, STLs in `cad/output/draft_dish/`, all marked DO NOT PRINT):
 - 130 mm open dish around the electronics pod: 4 mm floor, 3 mm rim, rim top at z = -2.
@@ -227,13 +227,13 @@ Next: answer the five questions, measure the boards, then update `dynamometer_ca
 **Not done yet / open:**
 - The calibration cradle (64 mm V-block) no longer fits a ∅130 base and must be redesigned.
 - The USB window size (14 × 11) and the HX711's real size are still assumptions.
-- Bend radius 21 mm is assumed from 4 × diameter. Thomas to bend-test the cable around a roughly 40 mm object.
+- Bend radius 21 mm is assumed from 4 × diameter. To do: bend-test the cable around a roughly 40 mm object.
 - Cable length (uncut, exit to bare tip) still unmeasured.
 - Wrist/heel of hand may touch the rim or the exposed cable at the collar. Check by holding the coupon-sized mock-up against the hand, or print the dish at low cost first.
 
 **Repo housekeeping:** the five stale wrong-cell STLs reappeared in `cad/output/print_ready/` again and were moved to `cad/archive/v1_30mm_cell/stale_print_ready/`. `print_ready/` holds only `fit_coupon_v2_print.stl`.
 
-**2026-10-14 (noon) — dish draft v2: silhouette changed.** Thomas pointed out the first draft (domed round shaft on a round flared base) read as a phallus. v2 replaces the dome with a **flat chamfered top** (z = 151.6, hook hole keeps 4.3 mm of material above it) and the round dish with a **112 × 130 mm rounded-rectangle tray** (corner radius 14, rim 3 mm). Cable path, collar, port and plug are unchanged. All overlaps 0.000 mm3, cable clearance 1.2 mm all round, 16 mm straight run, spare-cable room about 2 m at 40 % packing (narrower in x than the round dish). Files: `cad/output/draft_dish/*_v2_DRAFT_do_not_print.stl`, `images/dish_draft_v2_*.png`. The round v1 files are in `cad/output/draft_dish/v1_round_SUPERSEDED/`.
+**2026-10-14 (noon) — dish draft v2: silhouette changed.** The first draft (domed round shaft on a round flared base) read as a phallus. v2 replaces the dome with a **flat chamfered top** (z = 151.6, hook hole keeps 4.3 mm of material above it) and the round dish with a **112 × 130 mm rounded-rectangle tray** (corner radius 14, rim 3 mm). Cable path, collar, port and plug are unchanged. All overlaps 0.000 mm3, cable clearance 1.2 mm all round, 16 mm straight run, spare-cable room about 2 m at 40 % packing (narrower in x than the round dish). Files: `cad/output/draft_dish/*_v2_DRAFT_do_not_print.stl`, `images/dish_draft_v2_*.png`. The round v1 files are in `cad/output/draft_dish/v1_round_SUPERSEDED/`.
 
 **2026-10-14 (afternoon) — draft v3 "compact box", offered next to the dish.**
 Same need (uncut cable, at least 15 mm of space where it leaves the cell), solved inside a closed base instead of an open tray. Files: `cad/compact_base_draft.py`, `cad/render_compact.py`, `cad/output/draft_compact/*_v3_DRAFT*`, `images/compact_v3_*.png`, `images/options_compact_vs_dish.png`. DO NOT PRINT until approved.
@@ -251,7 +251,7 @@ Same need (uncut cable, at least 15 mm of space where it leaves the cell), solve
 - Housekeeping: the five v1 wrong-cell STLs were back in `cad/output/print_ready/` again; moved to `cad/archive/v1_30mm_cell/stale_print_ready/`.
 
 ### 2026-10-16 — v3 compact box chosen and released for printing
-**Decision (Thomas):** option A, the compact box. He checked the cable against it: the spare cable has to be coiled ("crumpled") into the box, which he is fine with. Dish v2 is not used; its files are in `cad/archive/superseded_2026-10-16/`.
+**Decision:** option A, the compact box. The spare cable has to be coiled ("crumpled") into the box, which is acceptable. Dish v2 is not used; its files are in `cad/archive/superseded_2026-10-16/`.
 
 **Correction:** the Nano's USB socket is micro-USB (the phone-charger type), not mini-B. The 14 × 11 mm window is kept; it is larger than a typical micro-USB plug moulding. If a cable's moulding is too fat, use a slimmer cable or file the window.
 
@@ -274,11 +274,14 @@ Superseded outputs (round-pod parts, dish v2, earlier drafts) were moved to `cad
 
 **2026-10-16 (evening) — bench test layout.** `images/breadboard_test.png` (`cad/draw_breadboard.py`): Nano straddling the centre gap of a standard breadboard, HX711 on a 4-pin male header in its own rows, 4 male-male jumpers: GND -> GND, DT -> D3, SCK -> D2, VCC -> 5V (same pins as the firmware). Test sketch prints raw HX711 counts at 115200 baud; pass = number changes by tens of thousands when the cell is pressed.
 
-**2026-10-16 (evening) — Jamar / Camry-style CONCEPT (not released).** Thomas asked whether a two-handle design like a commercial digital grip dynamometer could work with our parts. Concept in `cad/jamar_concept.py` + `cad/render_jamar.py`, images `images/jamar_concept_view.png` and `images/jamar_concept_section.png`, STEP in `cad/output/concept_jamar/`.
+**2026-10-16 (evening) — Jamar / Camry-style CONCEPT (not released).** Concept check: could a two-handle design like a commercial digital grip dynamometer work with these parts. Concept in `cad/jamar_concept.py` + `cad/render_jamar.py`, images `images/jamar_concept_view.png` and `images/jamar_concept_section.png`, STEP in `cad/output/concept_jamar/`.
 - Why the cell moves out of the handle: a 22 mm cell plus walls inside a handle makes the grip far too fat for a two-handle layout, so the cell stands in a body beside the grip, like the display body of a commercial unit.
 - Frame (fixed): body holding the cell (cable end bolted to the back of the body, same 3-hole pattern), top and bottom arms, and a separate palm bar bolted between the arms at one of 5 positions (bar-to-bar gap 26-66 mm in 10 mm steps, outer grip span 70-110 mm). The 5 values are placeholders: Jamar has 5 lock positions and research commonly uses the 2nd, but its exact spacings were not confirmed; measure a real one if possible.
 - Finger part (moving): bracket bolted to the cell's top end, through an opening in the body, with the finger bar hanging from it; 20 mm fingertip gap behind the finger bar.
 - Checks: finger part vs fixed parts overlap 0.000 mm3, smallest gap 3.00 mm, bending zone 3.00 mm, all 5 palm-bar positions clear, cable on the fixed side. Finger-bar root at 100 kg about 9 MPa (print the finger part on its side).
 - Size about 181 x 82 x 201 mm. Not yet designed: electronics mounts inside the body, printing orientation/splitting of the frame, cradle.
 
-**2026-10-16 (late) — firmware tutorial and git history.** The firmware had been handed over as one finished file (v1.0), which skipped the teaching. Added `firmware/tutorial/`: four commented sketches (hello serial, read raw, tare, CSV + `t` command) that build up to v1.0, each with a check and an exercise; all six sketches compile against stub headers. Thomas types each step into `firmware/my_firmware/` and commits it on the day it works. The project folder became a git repository; the history up to today was written down from this log, with each commit on the day the work happened.
+**2026-10-16 (late) — firmware tutorial and git history.** The firmware first existed as one finished file (v1.0), which skipped the learning steps. Added `firmware/tutorial/`: four commented sketches (hello serial, read raw, tare, CSV + `t` command) that build up to v1.0, each with a check and an exercise; all six sketches compile against stub headers. Each step gets typed into `firmware/my_firmware/` and committed on the day it works. The project folder became a git repository; the history up to today was written down from this log, with each commit on the day the work happened.
+
+
+**2026-10-24 — docs brought up to v3.** `docs/12_design.md`, `docs/02_printing.md` and the README now describe the released v3 design (compact box base, flat top, 57 × 82 mm footprint, ~204 mm tall); the v2 design text stays in the archive. The Jamar-style concept now has its own page, `docs/13_jamar_concept.md`, still concept-only. v3 CAD and renders live in the design chat's packaged zip; regenerating them into the repo is an open item.

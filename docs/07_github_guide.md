@@ -46,9 +46,9 @@ If something breaks and you fix it, that's a commit too (`fix: ...`). Those are 
 2. In GitHub Desktop: **File → Add local repository** → choose that folder. It'll say it isn't a git repository yet and offer to **create a repository** here. Click that.
    - Name: `hand-dynamometer`
    - Description: `3D-printed grip strength meter with load cell, Arduino, and a full calibration report`
-   - Leave "initialize with README" unchecked (we already have one)
-   - Git ignore: none (we already have `.gitignore`)
-   - License: none (we already have `LICENSE`)
+   - Leave "initialize with README" unchecked (the repo already has one)
+   - Git ignore: none (the repo already has `.gitignore`)
+   - License: none (the repo already has `LICENSE`)
 3. It shows a list of every file as "changes". In the bottom-left, the summary box: type `Initial commit: CAD, firmware, software, docs`. Click **Commit to main**.
 4. Click **Publish repository** (top bar). **Uncheck "Keep this code private."** Click Publish.
 5. Go to github.com/yourname/hand-dynamometer. It's live. The README renders as the front page.

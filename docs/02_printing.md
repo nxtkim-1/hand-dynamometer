@@ -1,94 +1,63 @@
 # 02 — Printing
 
-## What you print
+## What you print (v3)
 
-All files are in `cad/output/print_ready/`. **Every part prints upright, exactly as it's saved — don't rotate anything.**
+All files are in `cad/output/print_ready/`, numbered in print order. **Every part prints exactly as it's saved — don't rotate anything, keep scale at 100 %.**
 
-| Part | File | Colour | ~Mass | ~Cost | Print order |
+| File | Colour | How it sits | Supports | ~Mass / note | Print order |
 |---|---|---|---|---|---|
-| Fit coupon | `fit_coupon_print.stl` | any | 38 g | $2.70 | **1st** — test your load cell fits |
-| Palm half | `palm_half_print.stl` | grey | 86 g | $6.00 | 2nd, after the coupon passes |
-| Finger half | `finger_half_print.stl` | black | 78 g | $5.50 | 2nd |
-| Cover | `cover_print.stl` | grey | 8 g | $0.60 | any time |
-| Calibration cradle | `calibration_cradle_print.stl` | any | ~100 g | ~$7 | before calibration week |
+| `1_base_test_v3.stl` | any | Open bottom on the bed | **Tree, "on build plate only"** (forms only under the box ceiling) | ~52 g before supports; box + clamp zone only — tests the cable, coil, boards and USB fit on the real cell | **1st** — skip if it already passed |
+| `2_palm_half_v3.stl` | grey | Open bottom on the bed, half-grip pointing up | **Tree, "on build plate only"** | ~182 mm tall, 57 × 82 mm footprint | 2nd |
+| `3_finger_half_v3.stl` | black | **Upside down, on its flat top** (as the file loads — don't flip it) | **Off**, no brim | ~137 mm tall, round footprint | 2nd |
+| `4_cover_v3.stl` | grey | Flat, rail facing up | Off | 14 mm tall | any time |
 
-Total about $23. Everything fits the P1S/P2S 256 × 256 mm bed.
+Cost: about **$17–24** for all four. Everything fits the P1S/P2S 256 × 256 mm bed. The fit coupon already passed G0 and the v1/v2 files are in `cad/archive/superseded_2026-10-16/`.
 
-## Orientation and supports
+**Not printable yet: the calibration cradle.** It was designed for the old round base and needs a redesign for the v3 box base. Not needed until calibration (G3).
 
-- **Palm half** stands on its flat base. The gusset under the internal ledge means **no supports are needed.**
-- **Finger half** stands on its bottom rim. It's tall and narrow, so use a **5 mm brim**. Turn on **tree supports** — they'll form only under the dome, which overhangs the seam. Those surfaces face the palm half and are hidden when assembled.
-- **Fit coupon** stands on its ring. No supports.
-- **Cover** lies flat. No supports.
-- **Cradle** lies flat, V-groove up. 3 walls, **15 % infill** — it's a jig, not a structural part.
+**Colour tip:** palm half in **grey**, finger half in **black** — it makes the two-part principle visible at a glance in photos and interviews.
 
-**Why upright?** The halves are curved shells. Upright, every layer is a complete ring-slice of the shell, which gives the smoothest outside surface and needs the least support. The stresses in the grip are low (a few MPa in a stiff half-tube), so the across-layer direction is well within PETG's strength.
+## Settings (Bambu Studio, PETG, any P1S or P2S)
 
-## Where to print — the Rapid Prototyping Centre
+Because the RPC's printers are Bambu Lab, use **Bambu Studio** (free, bambulab.com → Download).
 
-The RPC runs Bambu Lab printers. The two you'll use are the **P1S** (18 of them) and **P2S** (12), both with a **256 × 256 mm** bed and able to print PLA, PETG and TPU. Your largest part is 170 × 46 mm, so everything fits with lots of room. The X1C and H2D are for online orders only — you don't need them.
+1. Printer **Bambu Lab P1S** (or P2S), nozzle 0.4 mm; filament **Bambu PETG Basic** (or Generic PETG).
+2. Drag in the STL. **Don't rotate it** — each file is already oriented.
 
-**Cost.** Standard PETG in black, white or grey is **$0.07 per gram**, charged on total mass including supports (you have none). The whole device is about 175 g → **roughly $12–15** including brims and the fit coupon. Teal and transparent PETG are premium at $0.09/g — not worth it.
+| Setting | Value |
+|---|---|
+| Process | **0.12 mm Fine** (or 0.16 mm Optimal if short on time) |
+| Wall loops | **4** |
+| Sparse infill | **25–40 %, gyroid** |
+| Seam position | **Aligned**, on the side seam between the halves |
+| Outer wall speed | ~60 mm/s |
+| X-Y hole compensation | **0** |
+| Scale / rotation | 100 %, no rotation |
 
-**Colour tip:** print the palm part in **grey** and the finger part in **black**. It makes the two-part principle visible at a glance in photos and interviews.
+3. Slice and check the estimated grams and time against the table before paying. Files 2 and 3 are the long prints at 0.12 mm — start those first if the RPC has two printers free.
+4. Save the project as a `.3mf` — that carries your settings and is what you bring to the RPC.
 
-**PLA is a fallback, not the plan.** PLA is stronger in tension but brittle — it snaps rather than deforms — while PETG is tougher and bends before it breaks. For a part you squeeze as hard as you can, bending before breaking is the property you want.
+**Why PETG:** the parts hold a static load for 30 seconds at a time. PLA creeps under sustained load and is brittle; PETG creeps less and bends before it snaps. PLA is a fallback, not the plan — same settings, note it as a limitation.
 
-## Slicer: Bambu Studio
+**Why 4 walls and gyroid:** the parts are loaded in bending along their length; bending strength lives in the outer skin (the perimeters), and infill stops the skins buckling. Gyroid is roughly equal in every direction and leaves no long straight weak lines.
 
-Because the RPC's printers are Bambu Lab, use **Bambu Studio** (free, bambulab.com → Download). Ignore PrusaSlicer and Cura for this project.
+**Supports on files 1 and 2** stand on the bed inside the open box, so you pull them out through the bottom after printing.
 
-1. Open Bambu Studio → choose printer **Bambu Lab P1S** (or P2S), nozzle **0.4 mm**.
-2. Filament: **Bambu PETG Basic** (or "Generic PETG").
-3. Process preset: **0.20 mm Standard**.
-4. Drag in `cad/output/print_ready/fit_coupon_print.stl`. **Don't rotate it** — it's already lying correctly.
-5. Change these from the defaults, in the Strength and Support tabs:
+Expect roughly 1.5–2× the time of the RPC's quick 0.20 mm preset. Finish the grip afterwards with 220 then 400 grit sandpaper.
 
-| Setting | Palm and finger halves | Coupon, cover, cradle |
-|---|---|---|
-| Wall loops | **4** | 3 |
-| Top / bottom shell layers | 5 / 5 | 4 / 4 |
-| Sparse infill density | **40 %** | 20 % |
-| Sparse infill pattern | **Gyroid** | Gyroid |
-| Enable support | Off (palm) · **Tree, on** (finger half) | Off |
-| Brim | 5 mm on the finger half | none |
+## At pickup
 
-6. Click **Slice plate**. The right panel shows estimated grams and time — check it against the table above before you pay for anything.
-7. Save the project as a `.3mf` (File → Save project). That file carries your settings, and it's what you bring to the RPC.
+- Run a **7 mm drill bit by hand** through the six bolt holes to clear stringing.
+- Peel out the supports.
+- Once assembled, check that **paper slides in the 3 mm gaps** all the way round.
 
-**Why PETG:** the parts hold a static load for 30 seconds at a time. PLA creeps (slowly deforms) under sustained load and is brittle; PETG creeps less and bends before it snaps. If the DEN only has PLA, use it with the same settings — it will work, and you'll note it in the report as a limitation.
-
-**Why 5 walls and 40 %:** both parts are loaded in bending along their length. Bending strength lives in the outer skin, which is the perimeters. Infill mostly stops the skins buckling. More walls matter more than more infill.
-
-**Why gyroid:** isotropic — roughly equal strength in every direction, and it doesn't create long straight weak lines the way grid infill does.
-
-## Orientation — do not change it
-
-Both structural parts are long and get bent along their length when you squeeze. The `_print.stl` files lay them **flat on their face**, so the printer builds them up through their thickness. Every layer then runs along the part's length, which means the bending stress stays *inside* layers instead of trying to peel them apart. Printed any other way, a layer line becomes the crack.
-
-The slots come out as horizontal features in this orientation and bridge fine at 0.2 mm. The M6 nut pocket in the finger part has a short bridged ceiling — expect it slightly rough inside, which doesn't matter.
+**Bring with you:** 6 × M6 × 25 with washers, 4 × M3 × 10, and the 4 mm hex key.
 
 ## Getting it printed at the RPC
 
-Bring the `.3mf` project file on a USB stick, or email/upload it — ask the RPC staff which they prefer the first time you go in. They'll confirm the plate type and send it to a P1S or P2S. Bambu printers auto-level the bed, so the classic first-layer problems are much rarer than on older printers, but still watch the first few minutes if you're there.
+Bring the `.3mf` project file on a USB stick, or email/upload it — ask the RPC staff which they prefer the first time you go in. They'll confirm the plate type and send it to a P1S or P2S. Bambu printers auto-level the bed, so first-layer problems are rare, but watch the first few minutes if you're there.
 
 Bring the `.3mf` or the STL — never G-code. G-code is tied to one printer profile.
-
-## Better surface on the real parts
-
-The fit coupon was printed on the RPC's quick preset (0.20 mm Strength, 6 walls, 25 % grid) and the surface looked rough. For the parts you hold, spend the extra time:
-
-| Setting (Bambu Studio) | Value | Why |
-|---|---|---|
-| Process preset | **0.12 mm Fine** (or 0.16 mm Optimal if time is short) | thinner layers = smaller steps on the curved grip |
-| Wall loops | 4 | strength lives in the walls |
-| Outer wall speed | about 60 mm/s | slower outer wall = smoother skin |
-| Seam position | Aligned, placed on the side seam between the halves | hides the seam line |
-| Sparse infill | 25-40 %, gyroid | strong in every direction |
-| Supports | tree, only where the slicer asks (inside the box, under the top cap) | |
-| Filament | PETG (Basic or HF), not PLA | PLA creeps under a 30-second squeeze |
-
-Expect roughly 1.5-2x the print time of the 0.20 mm preset. Finish the grip with 220 then 400 grit sandpaper.
 
 ## Watching the print
 
@@ -100,17 +69,12 @@ Expect roughly 1.5-2x the print time of the 0.20 mm preset. Finish the grip with
 
 | What you see | Fix |
 |---|---|
-| Corners lifting off the bed | Clean bed with IPA, add brim, raise bed temp 5 °C |
+| Corners lifting off the bed | Clean bed with IPA, raise bed temp 5 °C |
 | Stringing between features | Normal for PETG; trim with a knife |
-| Slots too tight for the bolt | Run a drill bit through by hand, or bump `SLOT_W_FIXED` / `SLOT_W_FREE` |
-| Nut won't seat in pocket | Bump `NUT_POCKET_AF` +0.2 |
+| Slots too tight for the bolt | Run a drill bit through by hand |
 | Layers separating | Print was too cold or too fast — raise nozzle temp 5–10 °C, slow down 20 % |
 | Print stopped halfway | Don't try to resume. Reprint. Note it in the build log. |
 
-## Post-processing
-
-Almost none. Remove the brim with a knife. Clear the four slots with a 6.5 mm drill bit run by hand — just to shave stringing, not to enlarge them. Check both ledges are flat; scrape any elephant-foot bulge off with a blade, because a bulged ledge tilts the cell. Sand the outside of both halves lightly if the layer lines feel sharp — these are the surfaces your hand touches.
-
 ## Filament budget
 
-Palm ~72 g + finger ~70 g + tray ~4 g + coupon ~27 g = about 175 g, plus margin for one failed print = **plan for 300 g**. Your slicer's estimate is the authoritative number. That's half a standard 1 kg spool. If the DEN charges by weight, this is about $10–15.
+Roughly 300–350 g including supports and margin for one failed print — under half a 1 kg spool. The slicer's estimate is the authoritative number.
