@@ -1,5 +1,4 @@
 import csv
-import random
 import time
 import fake_data
 import metrics
@@ -7,7 +6,6 @@ from datetime import datetime
 from pathlib import Path
 import matplotlib.pyplot as plt
 from grip_compare import assess, print_report, plot_on_centiles
-from datetime import datetime
 
 
 USE_FAKE = True
@@ -26,7 +24,7 @@ PROMPT_GO = "Squeeze as hard as you can! Harder... harder... harder..."
 PROMPT_FATIGUE = "Squeeze as hard as you can and KEEP squeezing for 30 seconds!"
 
 def ask_user_info():
-    age = int(input("Enter age:"))
+    age = int(input("Enter age: "))
     sex = input("Enter sex (male/female): ").strip().lower() #strip = erase space, lower = make it lower case
     while sex not in ("male", "female"):
         sex = input("Please type male or female: ").strip().lower()
@@ -55,124 +53,63 @@ def rest(seconds):
         print(f"Rest for {seconds} seconds...")
         plt.pause(seconds) #그만큼 기다리게 함
 
-#from here---------
 def record(ser, ax, hand, title, test, seconds):
     """Record one squeeze and draw it live. Returns the raw curve."""
     if ser is None:
-        fake_lines = fake_data.make_lines(hand, test, seconds)
+        fake_lines = fake_data.make_lines(hand, test, seconds) #fake data안에 make_lines variable 가짜 측정값
     else:
-        ser.reset_input_buffer()
+        ser.reset_input_buffer() #쌓여 있던 옛날 데이터를 전부 지워
 
     readings = []
-    first_ms = None
-    start = time.time()
+    first_ms = None #첫번째 시간 저장 --> 아직은 0
+    start = time.time() #몇초 지났는지 알려줌
     i = 0
     while True:
-        if ser is None:
-            if i>= len(fake_lines):
+        if ser is None: #한줄 한줄 읽고 더 읽을게 없으면 반복을 끝냄
+            if i>= len(fake_lines): #i 숫자가 fake_lines 갯수보다 높으면 
                 break
-            line = fake_lines[i]
+            line = fake_lines[i] #i번째 코드를 읽음
         else:
-            if time.time() - start >= seconds:
-                break
+            if time.time() - start >= seconds: #시작하고 지난 시간
+                break #멈춘다
             line = ser.readline().decode(errors = "ignore").strip()
-        i += 1
+            """
+            ser.readline(): 아두이노가 보낸 한 줄 --> 컴퓨터용 바이트 형태
+            .decode(errors="ignore"): 그걸 글자로 바꿔요. 바꿀 수 없는 깨진 부분은 무시해요
+            .strip(): 줄 앞뒤의 빈칸과 줄바꿈 기호를 지워요.
+            """
+        i += 1 #다음줄을 읽기 위함
 
         try:
             time_str, force_str = line.split(",")
             time_ms = int(time_str)
             force_kg = float(force_str)
-        except ValueError:
+        except ValueError: #문제가 생기면 이번 줄은 버리고 맨 위로 돌아가
             continue
 
-        if first_ms is None:
+        if first_ms is None: #아직 없으면
             first_ms = time_ms
-        readings.append({"time_ms": time_ms - first_ms, "force_kg": force_kg})
+        readings.append({"time_ms": time_ms - first_ms, "force_kg": force_kg}) #리스트 뒤에 추가함
 
-        if len(readings) % 5 == 0:
-            now_s = readings[-1]["time_ms"]/1000
-            ax.clear()
-            ax.plot([r["time_ms"]/ 1000 for r in readings], [r["force_kg"] for r in readings])
-            ax.set_xlim(max(0, now_s - 5), max(5, now_s))
+        if len(readings) % 5 == 0: #나눈 나머지
+            now_s = readings[-1]["time_ms"]/1000 #readings[-1] is last value on the list --> change ms --> s and save it
+            ax.clear() 
+            ax.plot([r["time_ms"]/ 1000 for r in readings], [r["force_kg"] for r in readings]) #r[] means in reading
+            ax.set_xlim(max(0, now_s - 5), max(5, now_s)) #set_xlim(왼쪽 끝, 오른쪽 끝)은 가로축에서 보여줄 범위, max picks higher value
             ax.set_xlabel("Time (s)")
             ax.set_ylabel("Force (kg)")
             ax.set_title(title)
             plt.pause(0.1 if ser is None else 0.001)
 
     if len(readings) == 0:
-        raise RuntimeError("No data received - check the USB cable and the PORT setting.")
+        raise RuntimeError("No data received - check the USB cable and the PORT setting.") #raise makes error on purpose
     return readings
 
 
-def fake_reading(t):
-    if t < 20:
-        force = t * 1.5
-    elif t < 60:
-        force = 30 + random.uniform(-1, 1)
-    else:
-        force = max(0, 30 - (t - 60) * 0.8)
-    return f"{t * 20},{force:.1f}"   
+#from here---------
 
 
-def make_session_path():
-    SESSIONS_DIR.mkdir(exist_ok=True)
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    return SESSIONS_DIR / f"session_{timestamp}.csv"
-
-
-def classify_grip(force, sex="female"):
-    cutoff = 27 if sex == "male" else 16 
-    return "Normal" if force >= cutoff else "Risk (Below Standard)"
-
-def make_session_path():
-    SESSIONS_DIR.mkdir(exist_ok=True)
-    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    return SESSIONS_DIR / f"session_{stamp}.csv"
-
-def run_grip_test(age, sex, num_samples=80):
-    plt.ion()
-    fig, ax = plt.subplots()
-    xs, ys = [], []
-    readings = []
-
-    for t in range(num_samples):
-        line = fake_reading(t)
-        timestamp_str, force_str = line.split(",")
-        timestamp = int(timestamp_str)
-        force = float(force_str)
-        readings.append({"timestamp": timestamp, "force": force})
-        xs.append(timestamp)
-        ys.append(force)
-        ax.clear()
-        ax.plot(xs, ys)
-        ax.set_xlabel("time (ms)")
-        ax.set_ylabel("force (kg)")
-        ax.set_title("time vs force")
-        plt.pause(0.03)
-    plt.ioff()
-    plt.show()
-
-    peak_force = max(r["force"] for r in readings)
-    result = assess(peak_force, age, sex)
-    print_report(result)
-
-    print(f"Peak Force: {peak_force} kg")
-    print(f"Verdict: {classify_grip(peak_force, sex)}")
-
-    save_path = make_session_path()
-
-    with open(save_path, "w", newline="") as f:
-        writer = csv.writer(f)
-        writer.writerow(["timestamp_ms", "force_kg"])
-        for r in readings:
-            writer.writerow([r["timestamp"], r["force"]])
-    print(f"{save_path} saved!")
-    plot_on_centiles(result)
-    return readings, result
-
-
-
-def run_protocal(ser, dominant):
+def run_protocol(ser, dominant):
     other = "left" if dominant == "right" else "right"
     trials = []
 
@@ -237,21 +174,24 @@ def print_summary(summary):
     print("-" * 50)  
     for hand in ["right", "left"]:
         m = summary[hand]
-        print(f"{hand.capitalize():5} peak{m['peak_kg']:5.1f} kg | "
-              f"time to peak {m['time_to_peak_ms']:4d} ms |"
+        print(f"{hand.capitalize():5} peak {m['peak_kg']:5.1f} kg | "
+              f"time to peak {m['time_to_peak_ms']:4d} ms | ~"
               f"RFD {m['rfd_n_per_s']:6.0f} N/s")
-        print(f"Fatigue index: {summary['fatigue_index_pct']:.1f}% decline over 30 s")
-        print(f"Left/right ratio: {summary['ratio']:.2f} "
-          f"(weaker hand {summary['weaker_pct']:.1f}% weaker)")
-        print("=" * 50)
+    print(f"Fatigue index: {summary['fatigue_index_pct']:.1f}% decline over 30 s")
+    print(f"Left/right ratio: {summary['ratio']:.2f} "
+        f"(weaker hand {summary['weaker_pct']:.1f}% weaker)")
+    print("=" * 50)
 
 def save_session (stamp, trials, fatigue, summary):
     SESSIONS_DIR.mkdir(exist_ok = True)
 
     raw_path = SESSIONS_DIR / f"session_{stamp}_raw.csv"
-    with open(raw_path, "w", newline = "") as f:
+    with open(raw_path, "w", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(["hand", "trial", "test", "peak_kg", "time_to_peak_ms", "rfd_n_per_s", "fatigue_index_pct"])
+        writer.writerow(["hand", "trial", "test", "time_ms", "force_kg"])
+        for t in trials + [fatigue]:
+            for r in t["readings"]:
+                writer.writerow([t["hand"], t["trial"], t["test"], r["time_ms"], r["force_kg"]])
 
     summary_path = SESSIONS_DIR / f"session_{stamp}_summary.csv"
     with open(summary_path, "w", newline="") as f:
@@ -275,7 +215,7 @@ def main():
     age, sex, dominant = ask_user_info()
     ser = None if USE_FAKE else open_serial()
 
-    trials, fatigue = run_protocal(ser, dominant)
+    trials, fatigue = run_protocol(ser, dominant)
     if ser is not None:
         ser.close()
         
@@ -287,7 +227,7 @@ def main():
     print_report(result)
 
     save_session(stamp, trials, fatigue, summary)
-    plot_on_centiles(result, save_path=  SESSIONS_DIR)
+    plot_on_centiles(result, save_path=SESSIONS_DIR / f"session_{stamp}_centiles.png")
 
 if __name__ == "__main__":
     main()
