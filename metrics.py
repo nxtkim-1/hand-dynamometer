@@ -14,7 +14,7 @@ def find_onset(readings, fraction = 0.05): #처음으로 힘을 주기 시작하
     for r in readings:
         if r["force_kg"] >= threshold:
             return r
-    return None
+    return readings[0]
 
 def time_to_peak_ms(readings): #힘을 주기 시작한 뒤 최대 힘에 도달하기까지 얼마나 걸렸는지
     """Time from the start of the squess to the peak"""
@@ -34,7 +34,7 @@ def fit_line (xs,ys):
     intercept = mean_y - slope * mean_x
     return slope, intercept
 
-def rfd_n_per_s(readings, window_ms=100): #힘이 얼마나 빠른 속도로 증가하는가
+def rfd_n_per_s(readings, window_ms=200): #힘이 얼마나 빠른 속도로 증가하는가
     """Rate of force development: slope of force over the first 200ms, in N/s."""
     onset = find_onset(readings)["time_ms"] #time_ms만 가져오기
     xs, ys = [], []
@@ -82,10 +82,10 @@ if __name__ == "__main__":
         for line in lines:
             time_str, force_str = line.split(",") #still string so gotta write int, float next line
             readings.append({"time_ms": int(time_str), "force_kg": float(force_str)}) #append add the number to the list
-            m = trial_metrics(readings)
-            print(f"{test} peak {m['peak_kg']:.1f} kg," f"time to peak {m['time_to_peak_ms']} ms," f"RFD {m['rfd_n_per_s']:.1f} N/s")
-            if test == "fatigue":
-                print(f"[{test}] fatigue index {fatigue_index_pect(readings):.1f} %")
+        m = trial_metrics(readings)
+        print(f"{test} peak {m['peak_kg']:.1f} kg," f"time to peak {m['time_to_peak_ms']} ms," f"RFD {m['rfd_n_per_s']:.1f} N/s")
+        if test == "fatigue":
+            print(f"[{test}] fatigue index {fatigue_index_pct(readings):.1f} %")
 
-            ratio, weaker = asymmetry(31.0, 34.0) #위에 만들어 놓은 식을 씀
-            print(f"Left/right ratio {ratio:.2f}, weaker hand {weaker:.1f} % weaker")
+    ratio, weaker = asymmetry(31.0, 34.0) #위에 만들어 놓은 식을 씀
+    print(f"Left/right ratio {ratio:.2f}, weaker hand {weaker:.1f} % weaker")

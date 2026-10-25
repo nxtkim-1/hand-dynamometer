@@ -31,7 +31,7 @@ def max_grip_curve(peak_kg, duration_s=5): # person's peak force for 5 seconds, 
     return lines
 
 
-def fatigue_curve(peak_kg, duration_s=32): #how fast the force fades over time
+def fatigue_curve(peak_kg, duration_s=32): #힘을 얼마나 오래 유지할 수 있는지
     """Squeeze as hard as possible for 30 s: force slowly fades."""
     start_s = 1.0          
     squeeze_s = 30.0      
