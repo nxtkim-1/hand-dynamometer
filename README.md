@@ -1,15 +1,27 @@
 # hand-dynamometer
 
-<<<<<<< HEAD
 A low-cost, 3D-printed grip strength dynamometer built around a load cell, an HX711 amplifier, and an Arduino, together with a Python application that administers a standardized grip test, analyzes the full force-time curve, and compares the result with published normative data.
 
 > **Educational project.** This device is not a medical device and is not intended for diagnosis or clinical decision-making.
-=======
+
+<p align="center">
+  <img src="images/compact_v3_assembled.png" alt="3D-printed grip dynamometer (CAD render)" width="320">
+</p>
+
+---
+
+## Hardware
+
 A handheld grip-strength instrument built around a **CZL601 100 kg load cell**. Its barrel-shaped handle splits into two halves; an **HX711** amplifier and **Arduino Nano** read the load cell and send the data to a laptop. Calibration uses known masses through the same load path as a real squeeze.
 
 **Current version: v3** — The split-grip barrel handle has a **flat chamfered top** and sits on a **closed 57 × 82 mm electronics box** (~204 mm tall) for the Nano, HX711 and coiled, uncut cable. All four v3 parts are **native, from-scratch parametric models** in Onshape — **[Hand Dynamometer v3](https://cad.onshape.com/documents/14d87426a9f5f0f89acb0ff1/w/cbee608c747a369f00bd9d19/e/3240b9b82e6414542f1a770b)** (private). The palm half, finger half, bay cover and base test were rebuilt feature by feature (sketches, revolves, extrudes and bolt pattern) from `cad/dynamometer_cad.py` and the v3 mesh measurements. The Jamar-style two-handle concept, a possible **v4 prototype** (`docs/13_jamar_concept.md`, `cad/jamar_concept.py`), is modeled in the same document as a separate part studio with a frame, palm bar, finger part and cover. The renders below show v2 (dome top, round flared base); v3 renders are still pending. Superseded v2 CAD files remain in `cad/archive/superseded_2026-10-16/`.
 
 **CAD status:** All five Onshape part studios regenerate cleanly as native parametric models; known open items are tracked in [docs/14_cad_open_items.md](docs/14_cad_open_items.md).
+
+The grip splits lengthwise. The **grey palm half** bolts to the bottom of the load cell, and the **black finger half** bolts to its top. A 3 mm seam keeps the halves apart, so every squeeze has to pass through the load cell.
+
+A full explanation of the features and design process is in **[`docs/12_design.md`](docs/12_design.md)**.
+
 ## Screenshots
 
 Onshape proof captures for the v3 parts and Jamar concept:
@@ -21,61 +33,45 @@ Onshape proof captures for the v3 parts and Jamar concept:
 - [Jamar v4 concept](docs/proofs/jamar.png)
 
 ![Onshape proof screenshot: v3 palm half](docs/proofs/palm-half.png)
->>>>>>> d8162cbdc2115a0417334c894a0a0b3449b50b7d
 
-<p align="center">
-  <img src="images/compact_v3_assembled.png" alt="3D-printed grip dynamometer (CAD render)" width="320">
-</p>
 ---
 
-<<<<<<< HEAD
 ## Motivation
 
 Grip strength is one of the simplest and most widely used indicators of overall muscle function. It is associated with mobility, recovery after surgery, and all-cause mortality, and it is a core criterion in current definitions of sarcopenia. Clinical dynamometers such as the Jamar, however, report only a single peak value and cost several hundred dollars.
 
 This project was undertaken to examine whether an inexpensive device could reproduce that peak measurement while also recording the entire force-time curve. Access to the full curve allows metrics that a mechanical dial cannot provide, including the rate at which force develops and the extent to which it declines during sustained effort.
 
+Grip strength is a validated clinical measure and a diagnostic criterion for sarcopenia (EWGSOP2: < 27 kg for men, < 16 kg for women). In the PURE study of about 140,000 people, it predicted mortality better than systolic blood pressure. This device logs the full force–time curve at 10 Hz.
+
 ---
-=======
-The grip splits lengthwise. The **grey palm half** bolts to the bottom of the load cell, and the **black finger half** bolts to its top. A 3 mm seam keeps the halves apart, so every squeeze has to pass through the load cell.
-
-
-A full explanation of the features and design process is in **[`docs/12_design.md`](docs/12_design.md)**.
->>>>>>> d8162cbdc2115a0417334c894a0a0b3449b50b7d
 
 ## Features
 
-<<<<<<< HEAD
 - **Standardized protocol.** The application guides the user through three maximal trials per hand, alternating hands to allow recovery, followed by a 30-second sustained-effort fatigue test. Posture instructions and verbal encouragement are fixed in the code so that every trial is administered identically, in keeping with the American Society of Hand Therapists (ASHT) recommendations.
 - **Live visualization.** Force is plotted in real time on a scrolling five-second window while each trial is recorded.
 - **Five force-time metrics.** Peak force, time to peak force, rate of force development (RFD), fatigue index, and bilateral asymmetry are computed for every session.
 - **Normative comparison.** The best grip is compared with age- and sex-specific values from Dodds et al. (2014) and reported as a percentile band, a Z-score, an estimated percentile, and a T-score. The EWGSOP2 and AWGS 2019 cut-offs for low grip strength are applied to users aged 65 and over.
 - **Complete data retention.** Every session is saved under a unique timestamp as a raw force-time file, a per-trial summary file, and a centile plot, so that new metrics can later be computed from existing recordings without repeating the test.
 - **Hardware-independent development.** A single setting (`USE_FAKE`) switches between the Arduino and a realistic simulated signal, which allows the entire application to be run and tested without the device.
-=======
-Grip strength is a validated clinical measure and a diagnostic criterion for sarcopenia (EWGSOP2: < 27 kg for men, < 16 kg for women). In the PURE study of about 140,000 people, it predicted mortality better than systolic blood pressure. A clinical standard device costs several hundred dollars and reports one number; this one logs the full force–time curve at 10 Hz.
->>>>>>> d8162cbdc2115a0417334c894a0a0b3449b50b7d
-
-
 
 ### Example output
 ![Grip strength plotted on Dodds et al. (2014) centile curves](images/centile_plot.png)
+
 ---
 
 ## How to run
+
+The top-level Python app runs a standardized grip test on the device, or on fake data while the hardware is being built.
 
 ### Requirements
 - Python 3.9 or later
 - matplotlib
 - pyserial (only required when the Arduino is connected)
 
-<<<<<<< HEAD
 ```bash
 pip install matplotlib
 ```
-=======
-The top-level Python app runs a standardized grip test on the device, or on fake data while the hardware is being built:
->>>>>>> d8162cbdc2115a0417334c894a0a0b3449b50b7d
 
 ### Run with simulated data (no hardware required)
 ```bash
@@ -97,7 +93,6 @@ Enter age, sex, and dominant hand when prompted, then press Enter before each tr
 | `python metrics.py` | Computes all metrics on simulated curves as a quick self-check |
 | `python grip_compare.py` | Prints normative reports for four example cases |
 
----
 
 ## Project structure
 
@@ -107,12 +102,19 @@ hand-dynamometer/
 ├── metrics.py          # Peak force, time to peak, RFD, fatigue index, asymmetry
 ├── grip_compare.py     # Comparison with Dodds et al. (2014) norms and clinical cut-offs
 ├── fake_data.py        # Simulated force-time curves for hardware-free testing
-├── cad/                # 3D-printable enclosure and handle design files
-├── docs/               # Design notes and documentation
-├── firmware/           # Arduino firmware (HX711 load cell, 50 Hz serial output)
-├── data/
-│   └── dodds2014_norms.csv
-├── images/             # Figures used in this README
+├── cad/
+│   ├── dynamometer_cad.py   # The whole design, parametric; regenerates every part and checks it
+│   ├── render_final.py      # The renders in images/
+│   ├── draw_final.py        # The dimensioned drawing
+│   ├── output/              # STL + STEP per part, assembly.step
+│   ├── output/print_ready/  # STLs ready for Bambu Studio (do not rotate them)
+│   └── archive/             # Earlier design iterations
+├── firmware/
+│   └── grip_firmware/       # Arduino sketch
+├── software/           # logger.py, calibrate.py, analyze_hold.py: serial logging and calibration
+├── data/               # dodds2014_norms.csv, example calibration points
+├── docs/               # Design notes, incl. 12_design.md and 13_jamar_concept.md (v4 concept)
+├── images/             # Renders, drawings, and photos
 ├── practice/           # Earlier development versions, kept for reference
 └── sessions/           # Saved test sessions (excluded from version control)
 ```
@@ -158,24 +160,7 @@ Both EWGSOP2 (Cruz-Jentoft et al., 2019) and AWGS 2019 (Chen et al., 2020) defin
 
 ## Validation (in progress)
 
-<<<<<<< HEAD
 The software has been developed and tested using simulated signals. Validation of the physical device is planned in two stages:
-=======
-```
-cad/        dynamometer_cad.py   the whole design, parametric; regenerates every part and checks it
-            render_final.py      the renders in images/
-            draw_final.py        the dimensioned drawing
-            output/              STL + STEP per part, assembly.step
-            output/print_ready/  STLs ready for Bambu Studio — don't rotate them
-            archive/             earlier design iterations
-firmware/   grip_firmware/       Arduino sketch
-software/   logger.py, calibrate.py, analyze_hold.py   serial logging and calibration
-grip_test.py, metrics.py, grip_compare.py, fake_data.py   the grip test app (above)
-data/       dodds2014_norms.csv, example calibration points
-docs/       everything above, incl. 13_jamar_concept.md (v4 prototype concept)
-images/     renders, drawings, and your photos
-```
->>>>>>> d8162cbdc2115a0417334c894a0a0b3449b50b7d
 
 1. **Calibration.** Known masses will be applied across the measurement range (at least five points), and linearity will be reported as maximum deviation as a percentage of full scale rather than R², since R² is close to 1 for almost any load cell and therefore says little about accuracy.
 2. **Agreement with a clinical device.** Paired measurements will be taken with this device and a Jamar hydraulic dynamometer under the same ASHT protocol, and agreement will be assessed with Bland-Altman analysis (bias and 95% limits of agreement). Correlation alone is not used, because two devices can be perfectly correlated while still disagreeing by a constant amount.
@@ -199,11 +184,7 @@ Results will be added to this section once the hardware is complete.
 - **Thomas Kim** — hardware design, mechanical assembly, and Arduino firmware
 - **Samuel Koo** — Python application, signal analysis, and normative comparison
 
+
 ## License
 
-<<<<<<< HEAD
 Software is released under the MIT License. Hardware design files, documentation, and images are released under CC BY 4.0. See [LICENSE](LICENSE) for details.
-=======
-Code: MIT. Hardware design files and documentation: CC BY 4.0.
-
->>>>>>> d8162cbdc2115a0417334c894a0a0b3449b50b7d
