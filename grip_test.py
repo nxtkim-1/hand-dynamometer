@@ -110,7 +110,8 @@ def record(ser, ax, hand, title, test, seconds):
 #from here---------
 
 
-def run_protocol(ser, dominant):
+def run_protocol(ser, stamp, user):
+    dominant = user["dominant"]
     other = "left" if dominant == "right" else "right"
     trials = []
 
@@ -128,6 +129,7 @@ def run_protocol(ser, dominant):
             m = metrics.trial_metrics(readings)
             print(f"Relax. Peak: {m['peak_kg']:.1f} kg")
             trials.append({"hand": hand, "trial": trial, "test": "max", "readings": readings, "metrics": m})
+            make_report(stamp, user, trials, SESSIONS_DIR, USE_FAKE)
             rest(REST_SECONDS)
 
     print(f"\n--- FATIGUE TEST ({dominant.upper()} hand) ---")
@@ -140,6 +142,7 @@ def run_protocol(ser, dominant):
     fatigue = {"hand": dominant, "trial": 1, "test": "fatigue",
                "readings": readings, "metrics": metrics.trial_metrics(readings)}
     fatigue["metrics"]["fatigue_index_pct"] = metrics.fatigue_index_pct(readings)
+    make_report(stamp, user, trials, SESSIONS_DIR, USE_FAKE, fatigue=fatigue)
     print("Relax. Fatigue test done.")    
 
     plt.ioff()
@@ -176,7 +179,7 @@ def print_summary(summary):
     for hand in ["right", "left"]:
         m = summary[hand]
         print(f"{hand.capitalize():5} peak {m['peak_kg']:5.1f} kg | "
-              f"time to peak {m['time_to_peak_ms']:4d} ms | ~"
+              f"time to peak {m['time_to_peak_ms']:4d} ms | "
               f"RFD {m['rfd_n_per_s']:6.0f} N/s")
     print(f"Fatigue index: {summary['fatigue_index_pct']:.1f}% decline over 30 s")
     print(f"Left/right ratio: {summary['ratio']:.2f} "
@@ -214,9 +217,10 @@ def save_session (stamp, trials, fatigue, summary):
 def main():
     stamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     age, sex, dominant = ask_user_info()
+    user = {"age": age, "sex": sex, "dominant": dominant}
     ser = None if USE_FAKE else open_serial()
 
-    trials, fatigue = run_protocol(ser, dominant)
+    trials, fatigue = run_protocol(ser, stamp, user)
     if ser is not None:
         ser.close()
         
@@ -228,7 +232,9 @@ def main():
     print_report(result)
 
     save_session(stamp, trials, fatigue, summary)
-    plot_on_centiles(result, save_path=SESSIONS_DIR / f"session_{stamp}_centiles.png")
+    plot_on_centiles(result, save_path=SESSIONS_DIR / f"session_{stamp}_centiles.png", show =False)
+    make_report(stamp, user, trials, SESSIONS_DIR, USE_FAKE,
+                fatigue=fatigue, summary=summary, result=result)
 
 if __name__ == "__main__":
     main()
