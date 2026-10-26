@@ -21,3 +21,5 @@ build/
 # OS clutter
 Thumbs.db
 desktop.ini
+
+.vscode/

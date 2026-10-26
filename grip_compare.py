@@ -116,7 +116,7 @@ def print_report(result):
     print("=" * 50)
  
  
-def plot_on_centiles(result, norms=None, save_path=None):
+def plot_on_centiles(result, norms=None, save_path=None, show = True):
     import matplotlib.pyplot as plt
     if norms is None:
         norms = load_norms()
@@ -137,12 +137,11 @@ def plot_on_centiles(result, norms=None, save_path=None):
     ax.legend()
     if save_path is not None:
         fig.savefig(save_path)
-    if save_path is not None:
-        fig.savefig(save_path)
     if show:
         plt.show()
     else:
         plt.close(fig)
+
  
  
 if __name__ == "__main__":

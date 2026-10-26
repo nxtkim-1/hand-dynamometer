@@ -1,4 +1,11 @@
 from datetime import datetime
+import random
+import csv
+import matplotlib.pyplot as plt
+from pathlib import Path
+from grip_compare import assess, print_report, plot_on_centiles
+
+SESSIONS_DIR = Path(__file__).resolve().parent / "sessions"
 
 now = datetime.now()
 print(now)
