@@ -26,7 +26,7 @@ def max_grip_curve(peak_kg, duration_s=5, rise_tau_s = 0.15, noise_kg = 0.15, st
             rise = 1 - math.exp(-(t_s - start_s) / rise_tau_s)  #힘 rises exponentially to peak
             hold = 1 - hold_drop * (t_s - start_s)  #how much force is lost during hold with equation
             force = start_kg + (peak_kg - start_kg) * rise * hold
-            if slip_s is not None and slip_s <= t_s < slip_s + 0.3
+            if slip_s is not None and slip_s <= t_s < slip_s + 0.3:
                 force = force * (1 - slip_drop)
         else:
             force = held_kg * (1 - (t_s - release_s) / 0.3)   # drop to 0 in 0.3 s
