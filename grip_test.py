@@ -3,6 +3,7 @@ import time
 from report import make_report
 import fake_data
 import metrics
+import filters
 from datetime import datetime
 from pathlib import Path
 import matplotlib.pyplot as plt
@@ -126,9 +127,10 @@ def run_protocol(ser, stamp, user):
             countdown()
             print(PROMPT_GO)
             readings = record(ser, ax, hand, f"{hand} hand - {trial}", "max", TRIAL_SECONDS)
+            smooth = filters.filter_readings(readings)
             m = metrics.trial_metrics(readings)
             print(f"Relax. Peak: {m['peak_kg']:.1f} kg")
-            trials.append({"hand": hand, "trial": trial, "test": "max", "readings": readings, "metrics": m})
+            trials.append({"hand": hand, "trial": trial, "test": "max", "readings": readings, "smooth": smooth, "metrics": m})
             make_report(stamp, user, trials, SESSIONS_DIR, USE_FAKE)
             rest(REST_SECONDS)
 
@@ -139,9 +141,10 @@ def run_protocol(ser, stamp, user):
     print(PROMPT_FATIGUE)
     readings = record(ser, ax, dominant, "30-second fatigue test",
                       "fatigue", FATIGUE_SECONDS)
+    smooth = filters.filter_readings(readings)
     fatigue = {"hand": dominant, "trial": 1, "test": "fatigue",
-               "readings": readings, "metrics": metrics.trial_metrics(readings)}
-    fatigue["metrics"]["fatigue_index_pct"] = metrics.fatigue_index_pct(readings)
+               "readings": readings, "metrics": metrics.trial_metrics(smooth)}
+    fatigue["metrics"]["fatigue_index_pct"] = metrics.fatigue_index_pct(smooth)
     make_report(stamp, user, trials, SESSIONS_DIR, USE_FAKE, fatigue=fatigue)
     print("Relax. Fatigue test done.")    
 
