@@ -11,20 +11,27 @@ import pandas as pd
 
 SESSIONS_DIR = Path(__file__).parent / "sessions"
 
-def load_all_sessions ():
+def load_all_sessions():
     tables = []
     for path in sorted(SESSIONS_DIR.glob("session_*_summary.csv")):
         df = pd.read_csv(path)
-        df = df[df["test"].isin(["max", "fatigue"])]
+        if "test" not in df.columns:               # old-format file -> skip
+            print(f"Skipped (no 'test' column): {path.name}")
+            continue
+        df = df[df["test"].isin(["max", "fatigue"])].copy()
         stamp = path.name.replace("session_", "").replace("_summary.csv", "")
-        df["session"] = pd.to_datetime(stamp, format = "%Y-%m-%d_%H-%M-%S")
+        try:
+            df["session"] = pd.to_datetime(stamp, format="%Y-%m-%d_%H-%M-%S")
+        except ValueError:                         # odd file name -> skip
+            print(f"Skipped (bad file name): {path.name}")
+            continue
         tables.append(df)
 
     if len(tables) == 0:
         return None
     all_rows = pd.concat(tables, ignore_index = True)
     for col in ["peak_kg", "time_to_peak_ms", "rfd_n_per_s", "fatigue_index_pct"]:
-        all_rows[col] = pd.to_numarical(all_rows[col], errors = "coerce")
+        all_rows[col] = pd.to_numeric(all_rows[col], errors = "coerce")
     return all_rows
 
 def per_session(df):
