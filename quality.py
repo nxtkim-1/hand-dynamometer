@@ -64,3 +64,24 @@ def ml_check(features):
     import pandas as pd
     row = pd.DataFrame([features][FEATURE_NAMES])
     return _model.predict(row)[0]
+
+def check_trial(readings):
+    """Use the trained model if it exists, otherwise the rules."""
+    features = extract_features(readings)
+    if MODEL_PATH.exists():
+        return {"label": ml_check(features), "method": "ml", "features": features}
+    return {"label": rule_check(features), "method": "rules", "features": features}
+
+if __name__ == "__main__":
+    import random
+    import fake_data
+    import filters
+
+    random.seed(1)
+    for kind in fake_data.TRIAL_KINDS:
+        readings = fake_data.lines_to_readings(fake_data.generate_curve(34.0, kind))
+        smooth = filters.filter_readings(readings)
+        f = extract_features(smooth)
+        print(f"{kind:12} -> rules say {rule_check(f):12} "
+              f"baseline {f['baseline_frac']:.2f}, rise {f['rise_time_ms']} ms, "
+              f"dip {f['dip_frac']:.2f}")

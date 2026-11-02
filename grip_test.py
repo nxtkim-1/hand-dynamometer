@@ -143,7 +143,7 @@ def run_protocol(ser, stamp, user):
                       "fatigue", FATIGUE_SECONDS)
     smooth = filters.filter_readings(readings)
     fatigue = {"hand": dominant, "trial": 1, "test": "fatigue",
-               "readings": readings, "metrics": metrics.trial_metrics(smooth)}
+               "readings": readings, "smooth": smooth, "metrics": metrics.trial_metrics(smooth)}
     fatigue["metrics"]["fatigue_index_pct"] = metrics.fatigue_index_pct(smooth)
     make_report(stamp, user, trials, SESSIONS_DIR, USE_FAKE, fatigue=fatigue)
     print("Relax. Fatigue test done.")    
