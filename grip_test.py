@@ -1,15 +1,16 @@
 import csv
 import time
-from report import make_report
-import fake_data
-import metrics
-import filters
 from datetime import datetime
 from pathlib import Path
+
 import matplotlib.pyplot as plt
-from grip_compare import assess, print_report, plot_on_centiles
+
+import fake_data
 import filters
+import metrics
 import quality
+from grip_compare import assess, print_report, plot_on_centiles
+from report import fmt, make_report
 
 
 USE_FAKE = True
@@ -23,12 +24,21 @@ REST_SECONDS = 3 if USE_FAKE else 60 #가짜 데이터는 60초동안 쉴 필요
 
 SESSIONS_DIR = Path(__file__).parent / "sessions" #파일을 만드는 경로만 만들어 놈
 
+# Sanity limits for real hardware
+MAX_PLAUSIBLE_KG = 150   # the load cell is rated 100 kg; anything far above means "not calibrated yet"
+MIN_RATE_HZ = 40         # below this, RFD is unreliable (the firmware's default HX711 rate is 10 Hz)
+
 PROMPT_POSTURE = "Sit upright, elbow at 90 degrees, forearm neutral, wrist straight."
 PROMPT_GO = "Squeeze as hard as you can! Harder... harder... harder..."
 PROMPT_FATIGUE = "Squeeze as hard as you can and KEEP squeezing for 30 seconds!"
 
 def ask_user_info():
-    age = int(input("Enter age: "))
+    while True:
+        answer = input("Enter age (5-100): ").strip()
+        if answer.isdigit() and 5 <= int(answer) <= 100:   # the normative table covers ages 5-100
+            age = int(answer)
+            break
+        print("Please type a whole number between 5 and 100.")
     sex = input("Enter sex (male/female): ").strip().lower() #strip = erase space, lower = make it lower case
     while sex not in ("male", "female"):
         sex = input("Please type male or female: ").strip().lower()
@@ -39,11 +49,17 @@ def ask_user_info():
 
 def open_serial():
     import serial                       # arduino data
-    ser = serial.Serial(PORT, BAUD, timeout=1) #이 줄이 실제로 Arduino와 연결하는 부분이야, Arduino에게 데이터를 기다릴 때 최대 1초까지만 기다려
-    time.sleep(2)                       # the Arduino restarts when we connect
+    from serial.tools import list_ports
+    try:
+        ser = serial.Serial(PORT, BAUD, timeout=1) #이 줄이 실제로 Arduino와 연결하는 부분이야, Arduino에게 데이터를 기다릴 때 최대 1초까지만 기다려
+    except serial.SerialException:
+        ports = [p.device for p in list_ports.comports()]
+        raise RuntimeError(f"Could not open PORT = {PORT!r}. Ports found on this computer: {ports}. "
+                           "Copy the Arduino's port into PORT at the top of grip_test.py.")
+    time.sleep(2.5)                     # the Arduino restarts when we connect, then tares itself
     input("Remove all force from the handle, then press Enter to zero it...")
     ser.write(b"T")                     # serial 통로를 통해 Arduino에게 데이터를 보내라 T = tare (set zero)
-    time.sleep(1)
+    time.sleep(2.5)                     # tare averages 20 samples: ~2 s at 10 Hz, ~0.25 s at 80 Hz
     ser.reset_input_buffer()
     return ser
 
@@ -65,6 +81,7 @@ def record(ser, ax, hand, title, test, seconds):
         ser.reset_input_buffer() #쌓여 있던 옛날 데이터를 전부 지워
 
     readings = []
+    skipped = []   # lines that were not data, e.g. "# tared" or the firmware's header
     first_ms = None #첫번째 시간 저장 --> 아직은 0
     start = time.time() #몇초 지났는지 알려줌
     i = 0
@@ -84,11 +101,18 @@ def record(ser, ax, hand, title, test, seconds):
             """
         i += 1 #다음줄을 읽기 위함
 
+        # Works for both formats:
+        #   simulator: "t_ms,force_kg"
+        #   firmware:  "t_ms,raw,net,force_kg"  -> first column = time, last column = force
+        parts = line.split(",")
         try:
-            time_str, force_str = line.split(",")
-            time_ms = int(time_str)
-            force_kg = float(force_str)
+            time_ms = int(parts[0])
+            force_kg = float(parts[-1])
         except ValueError: #문제가 생기면 이번 줄은 버리고 맨 위로 돌아가
+            if line:
+                skipped.append(line)
+            continue
+        if len(parts) < 2:
             continue
 
         if first_ms is None: #아직 없으면
@@ -106,17 +130,30 @@ def record(ser, ax, hand, title, test, seconds):
             plt.pause(0.1 if ser is None else 0.001)
 
     if len(readings) == 0:
-        raise RuntimeError("No data received - check the USB cable and the PORT setting.") #raise makes error on purpose
+        hint = f" First non-data line received: {skipped[0]!r}" if skipped else ""
+        raise RuntimeError("No data received - check the USB cable and the PORT setting." + hint) #raise makes error on purpose
     return readings
 
 
-#from here---------
+def check_recording(readings, warned):
+    """Catch the two silent hardware problems: wrong sample rate and missing calibration."""
+    rate = filters.estimate_rate_hz(readings)
+    if rate < MIN_RATE_HZ and not warned:
+        print(f"  Warning: data arrive at about {rate:.0f} samples/s. RFD needs at least {MIN_RATE_HZ}; "
+              "it will be reported as n/a. Set the HX711 to 80 Hz (RATE pin).")
+        warned = True
+    peak = max(r["force_kg"] for r in readings)
+    if peak > MAX_PLAUSIBLE_KG:
+        raise RuntimeError(f"Peak of {peak:.0f} 'kg' is not physically possible - the firmware is probably "
+                           "not calibrated yet. Run software/calibrate.py and set COUNTS_PER_KG.")
+    return warned
 
 
 def run_protocol(ser, stamp, user):
     dominant = user["dominant"]
     other = "left" if dominant == "right" else "right"
     trials = []
+    warned = False
 
     plt.ion()
     fig,ax = plt.subplots()
@@ -129,6 +166,7 @@ def run_protocol(ser, stamp, user):
             countdown()
             print(PROMPT_GO)
             readings = record(ser, ax, hand, f"{hand} hand - {trial}", "max", TRIAL_SECONDS)
+            warned = check_recording(readings, warned)
             smooth = filters.filter_readings(readings)
             m = metrics.trial_metrics(smooth)
             q = quality.check_trial(smooth)
@@ -148,6 +186,7 @@ def run_protocol(ser, stamp, user):
     print(PROMPT_FATIGUE)
     readings = record(ser, ax, dominant, "30-second fatigue test",
                       "fatigue", FATIGUE_SECONDS)
+    check_recording(readings, warned)
     smooth = filters.filter_readings(readings)
     fatigue = {"hand": dominant, "trial": 1, "test": "fatigue",
                "readings": readings, "smooth": smooth, "metrics": metrics.trial_metrics(smooth)}
@@ -188,13 +227,17 @@ def print_summary(summary):
     print("-" * 50)  
     for hand in ["right", "left"]:
         m = summary[hand]
-        print(f"{hand.capitalize():5} peak {m['peak_kg']:5.1f} kg | "
+        print(f"{hand.capitalize():5} peak {fmt(m['peak_kg']):>5} kg | "
               f"time to peak {m['time_to_peak_ms']:4d} ms | "
-              f"RFD {m['rfd_n_per_s']:6.0f} N/s")
-    print(f"Fatigue index: {summary['fatigue_index_pct']:.1f}% decline over 30 s")
-    print(f"Left/right ratio: {summary['ratio']:.2f} "
-        f"(weaker hand {summary['weaker_pct']:.1f}% weaker)")
+              f"RFD {fmt(m['rfd_n_per_s'], 0):>6} N/s")
+    print(f"Fatigue index: {fmt(summary['fatigue_index_pct'])}% decline over 30 s")
+    print(f"Left/right ratio: {fmt(summary['ratio'], 2)} "
+        f"(weaker hand {fmt(summary['weaker_pct'])}% weaker)")
     print("=" * 50)
+
+def round_or_blank(x, digits):
+    """round() that writes an empty cell instead of crashing when a metric could not be computed."""
+    return "" if x is None else round(x, digits)
 
 def save_session (stamp, trials, fatigue, summary):
     SESSIONS_DIR.mkdir(exist_ok = True)
@@ -216,11 +259,11 @@ def save_session (stamp, trials, fatigue, summary):
         for t in trials + [fatigue]:
             m = t["metrics"]
             writer.writerow([t["hand"], t["trial"], t["test"], m["peak_kg"],
-                             m["time_to_peak_ms"], round(m["rfd_n_per_s"], 1),
+                             m["time_to_peak_ms"], round_or_blank(m["rfd_n_per_s"], 1),
                              m.get("fatigue_index_pct", ""), t.get("quality", "")])
         
-        writer.writerow(["left_right_ratio", round(summary["ratio"], 3)])
-        writer.writerow(["weaker_hand_pct", round(summary["weaker_pct"], 1)])
+        writer.writerow(["left_right_ratio", round_or_blank(summary["ratio"], 3)])
+        writer.writerow(["weaker_hand_pct", round_or_blank(summary["weaker_pct"], 1)])
 
     print(f"Saved {raw_path.name} and {summary_path.name}")
 
@@ -236,13 +279,13 @@ def main():
         
 
     summary = summarize(trials, fatigue)
+    save_session(stamp, trials, fatigue, summary)   # save first, so a later problem never loses the data
     print_summary(summary)
 
     result = assess(summary["overall_peak_kg"], age, sex)
     print_report(result)
 
-    save_session(stamp, trials, fatigue, summary)
-    plot_on_centiles(result, save_path=SESSIONS_DIR / f"session_{stamp}_centiles.png", show =False)
+    plot_on_centiles(result, save_path=SESSIONS_DIR / f"session_{stamp}_centiles.png", show=False)
     make_report(stamp, user, trials, SESSIONS_DIR, USE_FAKE,
                 fatigue=fatigue, summary=summary, result=result)
 

@@ -42,7 +42,7 @@ Grip strength is one of the simplest and most widely used indicators of overall 
 
 This project was undertaken to examine whether an inexpensive device could reproduce that peak measurement while also recording the entire force-time curve. Access to the full curve allows metrics that a mechanical dial cannot provide, including the rate at which force develops and the extent to which it declines during sustained effort.
 
-Grip strength is a validated clinical measure and a diagnostic criterion for sarcopenia (EWGSOP2: < 27 kg for men, < 16 kg for women). In the PURE study of about 140,000 people, it predicted mortality better than systolic blood pressure. This device logs the full force–time curve at 10 Hz.
+Grip strength is a validated clinical measure and a diagnostic criterion for sarcopenia (EWGSOP2: < 27 kg for men, < 16 kg for women). In the PURE study of about 140,000 people, it predicted mortality better than systolic blood pressure. This device logs the full force–time curve (80 samples per second recommended; see "Run with the Arduino").
 
 ---
 
@@ -57,6 +57,9 @@ Grip strength is a validated clinical measure and a diagnostic criterion for sar
 - **Live HTML report.** A browser page opens after the first trial and refreshes as each recording finishes, showing peak force, trial-to-trial coefficient of variation, force-time curves, and the normative comparison.
 - **Signal filtering.** Metrics are computed on curves smoothed with a zero-phase, 4th-order Butterworth low-pass filter (10 Hz), while the raw signal is saved unchanged. In a Monte Carlo comparison of 300 simulated trials, this filter reduced the spread of RFD error with little bias, whereas a 5-point moving average introduced a consistent overestimate.
 - **Session history.** `history.py` uses pandas to combine every saved session into a dashboard of best peak force, coefficient of variation, and fatigue index over time.
+- **Automatic trial-quality check.** Each maximal trial is classified as good, false start, slip, or submaximal effort from five shape features, and the operator is warned immediately so that the trial can be repeated. A Random Forest trained on 2,000 synthetic curves reached 99% test accuracy, compared with 92% for hand-tuned rules. Because the training data are simulated, this result demonstrates the pipeline rather than accuracy on real users.
+- **Hardware safeguards.** The app accepts both the simulator's two-column format and the firmware's four-column format, measures the real sample rate of every recording, adapts the filter to it, reports RFD as n/a when sampling is too slow to estimate it, and stops with a clear message if the firmware has not been calibrated.
+- **Automated tests.** A pytest suite (21 tests) checks the metrics against curves with known answers, verifies that filtering does not shift the signal in time, and runs the full protocol end to end with simulated data and with a simulated Arduino that speaks the real firmware format.
 
 ### Example output
 ![Grip strength plotted on Dodds et al. (2014) centile curves](images/centile_plot.png)
@@ -68,12 +71,10 @@ Grip strength is a validated clinical measure and a diagnostic criterion for sar
 The top-level Python app runs a standardized grip test on the device, or on fake data while the hardware is being built.
 
 ### Requirements
-- Python 3.9 or later
-- matplotlib
-- pyserial (only required when the Arduino is connected)
+Python 3.9 or later.
 
 ```bash
-pip install matplotlib numpy scipy pandas
+pip install -r requirements.txt
 ```
 
 ### Run with simulated data (no hardware required)
@@ -83,11 +84,16 @@ python grip_test.py
 Enter age, sex, and dominant hand when prompted, then press Enter before each trial. Results are printed to the terminal and saved to the `sessions/` folder.
 
 ### Run with the Arduino
-1. Install pyserial: `pip install pyserial`
-2. Upload `firmware/grip_firmware/grip_firmware.ino` to the board.
+1. Set the HX711 to **80 samples per second** (RATE pin high). At the default 10 samples per second, rate of force development cannot be estimated and is reported as n/a.
+2. Upload `firmware/grip_firmware/grip_firmware.ino`, run `software/calibrate.py`, and paste the printed value into `COUNTS_PER_KG`. Before calibration the app stops with a message instead of reporting impossible forces.
 3. Find the serial port: `python -m serial.tools.list_ports`
-4. In `grip_test.py`, set `USE_FAKE = False` and set `PORT` to the port found in step 3.
+4. In `grip_test.py`, set `USE_FAKE = False` and set `PORT` to the port found in step 3. If the port is wrong, the app lists the ports it can see.
 5. Run `python grip_test.py` and release the handle when asked to zero the sensor.
+
+### Run the tests
+```bash
+python -m pytest
+```
 
 ### Other scripts
 | Command | Purpose |
@@ -97,6 +103,8 @@ Enter age, sex, and dominant hand when prompted, then press Enter before each tr
 | `python grip_compare.py` | Prints normative reports for four example cases |
 | `python filters.py` | Compares raw, moving-average and Butterworth RFD over 300 simulated trials |
 | `python history.py` | Builds a dashboard of all saved sessions |
+| `python quality.py` | Shows the rule-based quality check on one curve of each fault type |
+| `python train_quality.py` | Trains and evaluates the trial-quality classifier |
 
 
 ## Project structure
@@ -106,11 +114,15 @@ hand-dynamometer/
 ├── grip_test.py        # Main application: protocol, live plot, saving, summary
 ├── metrics.py          # Peak force, time to peak, RFD, fatigue index, asymmetry
 ├── grip_compare.py     # Comparison with Dodds et al. (2014) norms and clinical cut-offs
-├── fake_data.py        # Simulated force-time curves for 
+├── fake_data.py        # Simulated force-time curves (good and faulty trials) for hardware-free testing
 ├── report.py           # Live HTML session report
-├── filters.py          # Moving-average and Butterworth filters
+├── filters.py          # Moving-average and Butterworth filters, sample-rate estimate
 ├── history.py          # pandas dashboard of all sessions
-hardware-free testing
+├── quality.py          # Rule-based and ML trial-quality check
+├── train_quality.py    # Trains the Random Forest classifier
+├── models/             # Saved quality model
+├── tests/              # pytest suite
+├── requirements.txt
 ├── cad/
 │   ├── dynamometer_cad.py   # The whole design, parametric; regenerates every part and checks it
 │   ├── render_final.py      # The renders in images/
@@ -129,11 +141,12 @@ hardware-free testing
 ```
 
 ### Data format
-The Arduino and the simulator both send one line per sample, at 50 samples per second:
+The simulator sends one line per sample at 50 samples per second; the firmware sends four columns:
 ```
-timestamp_ms,force_kg
+timestamp_ms,force_kg               (simulator)
+timestamp_ms,raw,net,force_kg       (firmware)
 ```
-Because the simulator follows exactly the same format as the firmware, no other part of the code needs to change when the real device is connected.
+The app reads the first column as time and the last column as force, so both formats work without changes. Lines that are not data, such as `# tared`, are skipped.
 
 ---
 
@@ -183,6 +196,7 @@ Results will be added to this section once the hardware is complete.
 - All results shown in this repository were produced with **simulated data**. They demonstrate that the analysis pipeline works, not that the device is accurate.
 - The normative data come from British cohorts and may not represent other populations.
 - The comparison uses the nearest age band rather than interpolating between bands.
+- The trial-quality model was trained only on simulated curves sampled at 50 Hz; it has not yet been tested on real fault trials.
 - The estimated percentile assumes that grip strength is normally distributed within each age band, which is an approximation.
 - Any future validation will involve a small number of participants (the authors), so it will indicate feasibility rather than establish clinical accuracy.
 

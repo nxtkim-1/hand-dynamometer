@@ -12,6 +12,21 @@ from scipy.signal import butter, filtfilt
 
 SAMPLE_RATE_HZ = 50
 CUTOFF_HZ = 10
+MIN_POINTS = 16          # filtfilt needs more points than its padding (3 x filter length)
+
+
+def estimate_rate_hz(readings):
+    """Measure how many samples per second a curve really has.
+
+    Uses (number of gaps) / (total time) instead of one gap, because Arduino millis()
+    timestamps are whole numbers: at 80 Hz the gaps alternate 12 and 13 ms.
+    """
+    if len(readings) < 2:
+        return SAMPLE_RATE_HZ
+    span_ms = readings[-1]["time_ms"] - readings[0]["time_ms"]
+    if span_ms <= 0:
+        return SAMPLE_RATE_HZ
+    return (len(readings) - 1) * 1000 / span_ms
 
 def moving_average(values, window = 5):
     half = window // 2 #앞뒤로 두개씩 봄
@@ -30,12 +45,20 @@ def butter_lowpass(values, cutoff_hz = CUTOFF_HZ, fs = SAMPLE_RATE_HZ, order = 4
     #list() = numpy list so change to normal list
 
 def filter_readings(readings, method = "butter"):
-    """Return a new, smoothed copy of a curve. The original is not changed."""
+    """Return a new, smoothed copy of a curve. The original is not changed.
+
+    The filter is designed for the curve's MEASURED sample rate, so it stays correct
+    whether the data come from the 50 Hz simulator or a slower/faster Arduino.
+    """
     forces = [r["force_kg"] for r in readings] #only take force #
-    if method == "moving_average": #basic is butterwoth, moving_average is average movement
+    fs = estimate_rate_hz(readings)
+    cutoff = min(CUTOFF_HZ, 0.4 * fs)   # cutoff must stay below half the sample rate (Nyquist)
+    if len(readings) < MIN_POINTS:
+        smooth = forces                  # too short to filter safely -> keep as is
+    elif method == "moving_average": #basic is butterwoth, moving_average is average movement
         smooth = moving_average(forces)
     else:
-        smooth = butter_lowpass(forces)
+        smooth = butter_lowpass(forces, cutoff_hz=cutoff, fs=fs)
     return [{"time_ms": r["time_ms"], "force_kg": round(f, 3)}
         for r, f in zip(readings, smooth)] #takes two or more lists and pairs up their items by their position
 

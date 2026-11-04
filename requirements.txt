@@ -1,0 +1,9 @@
+# Grip test app (top level). Install with:  pip install -r requirements.txt
+matplotlib>=3.7
+numpy>=1.24
+scipy>=1.10
+pandas>=2.0
+scikit-learn>=1.3
+joblib>=1.3
+pyserial>=3.5      # only needed when the Arduino is connected
+pytest>=7.0        # only needed to run the tests
