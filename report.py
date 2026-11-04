@@ -1,3 +1,4 @@
+import html
 import statistics
 import webbrowser
 
@@ -27,6 +28,23 @@ STYLE = """
   .bad { color: #b45309; font-weight: 600; }
   img { width: 100%; background: white; border-radius: 12px; margin: 12px 0; }
   .note { font-size: 13px; color: #888; margin-top: 32px; }
+  .toolbar { display: flex; gap: 10px; margin: 16px 0; }
+  .btn { font: inherit; font-weight: 600; padding: 10px 18px; border-radius: 10px;
+         border: 1px solid #0f766e; background: #0f766e; color: white;
+         cursor: pointer; text-decoration: none; }
+  .btn.secondary { background: white; color: #0f766e; }
+  .caution { background: #fde8e8; border: 1px solid #f5b5b5; }
+  /* PDF: the browser's "Save as PDF" prints exactly this page, minus the buttons */
+  @page { size: A4; margin: 14mm; }
+  @media print {
+    body { background: white; margin: 0; max-width: none; }
+    .no-print { display: none !important; }
+    .card { box-shadow: none; border: 1px solid #ddd; }
+    .card, img, tr, .block { break-inside: avoid; }
+    h2 { break-after: avoid; }
+    img { max-height: 105mm; width: auto; max-width: 100%; display: block; margin: 8px auto; }
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
 </style>
 """
 
@@ -40,6 +58,20 @@ def fmt(x, digits=1):
 def card(label, value, unit=""):
     return (f'<div class="card"><div class="label">{label}</div>'
             f'<div class="value">{value} <span class="unit">{unit}</span></div></div>')
+
+
+def describe_user(stamp, user):
+    """One line with whatever participant details were given."""
+    parts = [stamp]
+    if user.get("participant_id"):
+        parts.append(f"ID {html.escape(str(user['participant_id']))}")
+    parts.append(f"{user['sex']}, age {user['age']}")
+    parts.append(f"dominant hand: {user['dominant']}")
+    if user.get("height_cm"):
+        parts.append(f"{fmt(user['height_cm'], 0)} cm")
+    if user.get("weight_kg"):
+        parts.append(f"{fmt(user['weight_kg'])} kg")
+    return " &middot; ".join(parts)
 
 
 def best_peak(trials, hand):
@@ -86,8 +118,9 @@ def plot_curves(trials, fatigue, save_path):
 
 
 def make_report(stamp, user, trials, folder, is_fake=True,
-                fatigue=None, summary=None, result=None, total_trials=7):
-    """Write session_<stamp>_report.html. Opens the browser the first time."""
+                fatigue=None, summary=None, result=None, total_trials=7,
+                open_browser=True, home_url=None):
+    """Write session_<stamp>_report.html. Opens the browser the first time (terminal app only)."""
     live = summary is None
     report_path = folder / f"session_{stamp}_report.html"
     first_time = not report_path.exists()
@@ -100,6 +133,14 @@ def make_report(stamp, user, trials, folder, is_fake=True,
 
     refresh = '<meta http-equiv="refresh" content="2">' if live else ""
     banners = ""
+    if user.get("injury"):
+        banners += ('<p class="banner caution">Participant reported recent hand or wrist pain or injury. '
+                    'Interpret the results with caution.</p>')
+    toolbar = ""
+    if not live:
+        home = f'<a class="btn secondary" href="{home_url}">New test</a>' if home_url else ""
+        toolbar = (f'<div class="toolbar no-print"><button class="btn" onclick="window.print()">'
+                   f'Download PDF</button>{home}</div>')
     if is_fake:
         banners += '<p class="banner fake">FAKE DATA - generated for testing, not a real measurement.</p>'
     if live:
@@ -109,6 +150,10 @@ def make_report(stamp, user, trials, folder, is_fake=True,
              + card("Left best", fmt(best_peak(trials, "left")), "kg")
              + card("Right CV", fmt(cv_pct(trials, "right")), "%")
              + card("Left CV", fmt(cv_pct(trials, "left")), "%"))
+    weight = user.get("weight_kg")
+    if summary is not None and weight:
+        # grip relative to body weight: compares people of different sizes more fairly
+        cards += card("Grip / body weight", fmt(summary["overall_peak_kg"] / weight, 2), "kg/kg")
     if summary is not None:
         cards += (card("Left/right ratio", fmt(summary["ratio"], 2))
                   + card("Fatigue index", fmt(summary["fatigue_index_pct"]), "%"))
@@ -127,16 +172,18 @@ def make_report(stamp, user, trials, folder, is_fake=True,
         cutoff_items = "".join(f"<li><b>{name}:</b> {v}</li>"
                                for name, v in result["cutoffs"].items())
         comparison = f"""
+<section class="block">
 <h2>Comparison with normative data</h2>
 <ul>
-  <li><b>Best grip:</b> {result['force']} kg</li>
+  <li><b>Best grip:</b> {fmt(result['force'])} kg</li>
   <li><b>Percentile band:</b> {result['band']}
       (Dodds 2014, {result['sex']}, age {result['ref_age']}, median {result['median']} kg)</li>
   <li><b>Z-score:</b> {result['z']} &rarr; estimated percentile ~{result['percentile']}%</li>
   <li><b>T-score:</b> {result['t']}</li>
   {cutoff_items}
 </ul>
-<img src="session_{stamp}_centiles.png" alt="Centile plot">"""
+<img src="session_{stamp}_centiles.png" alt="Centile plot">
+</section>"""
 
     html = f"""<!DOCTYPE html>
 <html>
@@ -148,12 +195,15 @@ def make_report(stamp, user, trials, folder, is_fake=True,
 </head>
 <body>
 <h1>Grip Strength Report</h1>
-<p class="sub">{stamp} &middot; {user['sex']}, age {user['age']} &middot; dominant hand: {user['dominant']}</p>
+<p class="sub">{describe_user(stamp, user)}</p>
+{toolbar}
 {banners}
 <div class="cards">{cards}</div>
 {comparison}
+<section class="block">
 <h2>Force-time curves</h2>
 <img src="{curves_name}{version}" alt="Force-time curves">
+</section>
 <h2>Maximal trials</h2>
 <table>
   <tr><th>Hand</th><th>Trial</th><th>Peak (kg)</th>
@@ -167,6 +217,6 @@ Educational project - not a medical device and not a diagnosis.</p>
 """
     with open(report_path, "w", encoding="utf-8") as f:
         f.write(html)
-    if first_time:
+    if first_time and open_browser:
         webbrowser.open(report_path.resolve().as_uri())
     return report_path

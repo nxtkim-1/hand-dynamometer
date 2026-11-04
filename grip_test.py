@@ -47,7 +47,8 @@ def ask_user_info():
         dominant = input("Please type right or left: ").strip().lower()
     return age, sex, dominant
 
-def open_serial():
+def connect_serial():
+    """Open the USB connection to the Arduino (shared by the terminal app and the web app)."""
     import serial                       # arduino data
     from serial.tools import list_ports
     try:
@@ -57,11 +58,34 @@ def open_serial():
         raise RuntimeError(f"Could not open PORT = {PORT!r}. Ports found on this computer: {ports}. "
                            "Copy the Arduino's port into PORT at the top of grip_test.py.")
     time.sleep(2.5)                     # the Arduino restarts when we connect, then tares itself
-    input("Remove all force from the handle, then press Enter to zero it...")
+    return ser
+
+def tare(ser):
+    """Zero the scale. Nothing may touch the handle while this runs."""
     ser.write(b"T")                     # serial 통로를 통해 Arduino에게 데이터를 보내라 T = tare (set zero)
     time.sleep(2.5)                     # tare averages 20 samples: ~2 s at 10 Hz, ~0.25 s at 80 Hz
     ser.reset_input_buffer()
+
+def open_serial():
+    ser = connect_serial()
+    input("Remove all force from the handle, then press Enter to zero it...")
+    tare(ser)
     return ser
+
+def parse_line(line):
+    """Turn one line into (time_ms, force_kg), or None if the line is not data.
+
+    Works for both formats:
+      simulator: "t_ms,force_kg"
+      firmware:  "t_ms,raw,net,force_kg"  -> first column = time, last column = force
+    """
+    parts = line.split(",")
+    if len(parts) < 2:
+        return None
+    try:
+        return int(parts[0]), float(parts[-1])
+    except ValueError:
+        return None
 
 def countdown(seconds=3):
     for n in range(seconds, 0, -1): #0초의 간격으로 -1씩 줄어듬 0은 포함 안함
@@ -101,19 +125,12 @@ def record(ser, ax, hand, title, test, seconds):
             """
         i += 1 #다음줄을 읽기 위함
 
-        # Works for both formats:
-        #   simulator: "t_ms,force_kg"
-        #   firmware:  "t_ms,raw,net,force_kg"  -> first column = time, last column = force
-        parts = line.split(",")
-        try:
-            time_ms = int(parts[0])
-            force_kg = float(parts[-1])
-        except ValueError: #문제가 생기면 이번 줄은 버리고 맨 위로 돌아가
+        parsed = parse_line(line)
+        if parsed is None: #데이터가 아닌 줄은 버리고 맨 위로 돌아가
             if line:
                 skipped.append(line)
             continue
-        if len(parts) < 2:
-            continue
+        time_ms, force_kg = parsed
 
         if first_ms is None: #아직 없으면
             first_ms = time_ms
