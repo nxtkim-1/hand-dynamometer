@@ -8,6 +8,8 @@ from datetime import datetime
 from pathlib import Path
 import matplotlib.pyplot as plt
 from grip_compare import assess, print_report, plot_on_centiles
+import filters
+import quality
 
 
 USE_FAKE = True
@@ -128,9 +130,14 @@ def run_protocol(ser, stamp, user):
             print(PROMPT_GO)
             readings = record(ser, ax, hand, f"{hand} hand - {trial}", "max", TRIAL_SECONDS)
             smooth = filters.filter_readings(readings)
-            m = metrics.trial_metrics(readings)
+            m = metrics.trial_metrics(smooth)
+            q = quality.check_trial(smooth)
             print(f"Relax. Peak: {m['peak_kg']:.1f} kg")
-            trials.append({"hand": hand, "trial": trial, "test": "max", "readings": readings, "smooth": smooth, "metrics": m})
+            if q["label"] != "good":
+                print(f"  Warning: possible {q['label']} - consider repeating this trial.")
+            trials.append({"hand": hand, "trial": trial, "test": "max",
+                           "readings": readings, "smooth": smooth,
+                           "metrics": m, "quality": q["label"]})
             make_report(stamp, user, trials, SESSIONS_DIR, USE_FAKE)
             rest(REST_SECONDS)
 
@@ -204,13 +211,13 @@ def save_session (stamp, trials, fatigue, summary):
     with open(summary_path, "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(["hand", "trial", "test", "peak_kg",
-                         "time_to_peak_ms", "rfd_n_per_s", "fatigue_index_pct"])
+                         "time_to_peak_ms", "rfd_n_per_s", "fatigue_index_pct", "quality"])
 
         for t in trials + [fatigue]:
             m = t["metrics"]
             writer.writerow([t["hand"], t["trial"], t["test"], m["peak_kg"],
                              m["time_to_peak_ms"], round(m["rfd_n_per_s"], 1),
-                             m.get("fatigue_index_pct", "")])
+                             m.get("fatigue_index_pct", ""), t.get("quality", "")])
         
         writer.writerow(["left_right_ratio", round(summary["ratio"], 3)])
         writer.writerow(["weaker_hand_pct", round(summary["weaker_pct"], 1)])

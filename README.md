@@ -54,6 +54,9 @@ Grip strength is a validated clinical measure and a diagnostic criterion for sar
 - **Normative comparison.** The best grip is compared with age- and sex-specific values from Dodds et al. (2014) and reported as a percentile band, a Z-score, an estimated percentile, and a T-score. The EWGSOP2 and AWGS 2019 cut-offs for low grip strength are applied to users aged 65 and over.
 - **Complete data retention.** Every session is saved under a unique timestamp as a raw force-time file, a per-trial summary file, and a centile plot, so that new metrics can later be computed from existing recordings without repeating the test.
 - **Hardware-independent development.** A single setting (`USE_FAKE`) switches between the Arduino and a realistic simulated signal, which allows the entire application to be run and tested without the device.
+- **Live HTML report.** A browser page opens after the first trial and refreshes as each recording finishes, showing peak force, trial-to-trial coefficient of variation, force-time curves, and the normative comparison.
+- **Signal filtering.** Metrics are computed on curves smoothed with a zero-phase, 4th-order Butterworth low-pass filter (10 Hz), while the raw signal is saved unchanged. In a Monte Carlo comparison of 300 simulated trials, this filter reduced the spread of RFD error with little bias, whereas a 5-point moving average introduced a consistent overestimate.
+- **Session history.** `history.py` uses pandas to combine every saved session into a dashboard of best peak force, coefficient of variation, and fatigue index over time.
 
 ### Example output
 ![Grip strength plotted on Dodds et al. (2014) centile curves](images/centile_plot.png)
@@ -70,7 +73,7 @@ The top-level Python app runs a standardized grip test on the device, or on fake
 - pyserial (only required when the Arduino is connected)
 
 ```bash
-pip install matplotlib
+pip install matplotlib numpy scipy pandas
 ```
 
 ### Run with simulated data (no hardware required)
@@ -92,6 +95,8 @@ Enter age, sex, and dominant hand when prompted, then press Enter before each tr
 | `python fake_data.py` | Plots one simulated maximal trial and one simulated fatigue trial |
 | `python metrics.py` | Computes all metrics on simulated curves as a quick self-check |
 | `python grip_compare.py` | Prints normative reports for four example cases |
+| `python filters.py` | Compares raw, moving-average and Butterworth RFD over 300 simulated trials |
+| `python history.py` | Builds a dashboard of all saved sessions |
 
 
 ## Project structure
@@ -101,7 +106,11 @@ hand-dynamometer/
 ├── grip_test.py        # Main application: protocol, live plot, saving, summary
 ├── metrics.py          # Peak force, time to peak, RFD, fatigue index, asymmetry
 ├── grip_compare.py     # Comparison with Dodds et al. (2014) norms and clinical cut-offs
-├── fake_data.py        # Simulated force-time curves for hardware-free testing
+├── fake_data.py        # Simulated force-time curves for 
+├── report.py           # Live HTML session report
+├── filters.py          # Moving-average and Butterworth filters
+├── history.py          # pandas dashboard of all sessions
+hardware-free testing
 ├── cad/
 │   ├── dynamometer_cad.py   # The whole design, parametric; regenerates every part and checks it
 │   ├── render_final.py      # The renders in images/
