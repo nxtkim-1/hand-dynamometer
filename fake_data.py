@@ -36,8 +36,8 @@ def max_grip_curve(peak_kg, duration_s=5, rise_tau_s = 0.15, noise_kg = 0.15, st
 
 def generate_curve(peak_kg, kind, duration_s = 5):
     if kind == "good":
-        return max_grip_curve(peak_kg, duration_s, rise_tau_s = random.unifrom(0.08, 0.30), 
-                              stat_kg = peak_kg * random. unifrom(0, 0.05))
+        return max_grip_curve(peak_kg, duration_s, rise_tau_s = random.uniform(0.08, 0.30), 
+                              start_kg = peak_kg * random.uniform(0, 0.05))
 
     if kind == "false_start": #false start → 쥐기 전 힘이 최대 힘의 5~35%. "good"(0~5%)과 5% 지점에서 맞닿아.
         return max_grip_curve(peak_kg, duration_s,
