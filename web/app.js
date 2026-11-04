@@ -7,6 +7,7 @@ const COLORS = { right: "#c2410c", left: "#6d28d9", fatigue: "#be185d" };
 
 const app = {
   config: null,
+  sid: null,         // this visitor's test id, sent with every request
   plan: [],
   index: 0,          // which step of the plan we are on
   points: [],        // points of the trial being recorded: {t (ms), f (kg)}
@@ -185,7 +186,7 @@ async function runTrial() {
   $("go-text").hidden = false;
   app.phase = "recording";
 
-  const stream = new EventSource(`/api/step/${app.index}/stream`);
+  const stream = new EventSource(`/api/${app.sid}/step/${app.index}/stream`);
   let peak = 0;
   stream.addEventListener("point", (e) => {
     const p = JSON.parse(e.data);
@@ -316,7 +317,7 @@ $("user-form").addEventListener("submit", async (e) => {
   $("btn-form").disabled = true;
   try {
     const data = await api("/api/start", body);
-    app.plan = data.plan; app.index = 0; app.traces = {}; app.flags = {};
+    app.sid = data.session_id; app.plan = data.plan; app.index = 0; app.traces = {}; app.flags = {};
     if (data.needs_tare) { show("screen-tare"); $("btn-tare").focus(); }
     else showTrial();
   } catch (err) {
@@ -329,7 +330,7 @@ $("user-form").addEventListener("submit", async (e) => {
 $("btn-tare").addEventListener("click", async () => {
   const b = $("btn-tare");
   b.disabled = true; b.textContent = "Zeroing... do not touch";
-  try { await api("/api/tare", {}); showTrial(); }
+  try { await api(`/api/${app.sid}/tare`, {}); showTrial(); }
   catch (err) { $("tare-error").textContent = err.message; $("tare-error").hidden = false; }
   finally { b.disabled = false; b.textContent = "Zero now"; }
 });
@@ -338,7 +339,7 @@ async function finish() {
   show("screen-finish");
   $("progress").hidden = true;
   try {
-    const data = await api("/api/finish", {});
+    const data = await api(`/api/${app.sid}/finish`, {});
     window.location.href = data.report_url;
   } catch (err) {
     $("finish-error").textContent = err.message; $("finish-error").hidden = false;
@@ -349,6 +350,7 @@ async function finish() {
   app.config = await api("/api/config");
   const badge = $("mode-badge");
   badge.hidden = false;
-  badge.textContent = app.config.use_fake ? "Simulated data" : "Device connected";
+  badge.textContent = app.config.demo ? "Online demo" : app.config.use_fake ? "Simulated data" : "Device connected";
+  if (app.config.demo) $("demo-note").hidden = false;
   if (!app.config.use_fake) badge.classList.add("device");
 })();

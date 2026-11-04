@@ -1,0 +1,19 @@
+# Render.com "Blueprint": tells Render how to run the public GripCheck demo.
+# Render reads this file when the repository is connected (New -> Blueprint).
+services:
+  - type: web
+    name: gripcheck
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    # ONE worker (so every visitor's test lives in the same memory) with 8 threads
+    # (so several visitors and their live graphs can run at the same time)
+    startCommand: gunicorn webapp:app --workers 1 --worker-class gthread --threads 8 --timeout 120 --bind 0.0.0.0:$PORT
+    healthCheckPath: /api/config
+    envVars:
+      - key: GRIPCHECK_DEMO       # simulated data only, private report links
+        value: "1"
+      - key: PYTHON_VERSION
+        value: "3.12.7"
+      - key: MPLBACKEND
+        value: Agg
