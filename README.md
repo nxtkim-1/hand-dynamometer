@@ -60,7 +60,7 @@ Grip strength is a validated clinical measure and a diagnostic criterion for sar
 - **Session history.** `history.py` uses pandas to combine every saved session into a dashboard of best peak force, coefficient of variation, and fatigue index over time.
 - **Automatic trial-quality check.** Each maximal trial is classified as good, false start, slip, or submaximal effort from five shape features, and the operator is warned immediately so that the trial can be repeated. A Random Forest trained on 2,000 synthetic curves reached 99% test accuracy, compared with 92% for hand-tuned rules. Because the training data are simulated, this result demonstrates the pipeline rather than accuracy on real users.
 - **Hardware safeguards.** The app accepts both the simulator's two-column format and the firmware's four-column format, measures the real sample rate of every recording, adapts the filter to it, reports RFD as n/a when sampling is too slow to estimate it, and stops with a clear message if the firmware has not been calibrated.
-- **Automated tests.** A pytest suite (30 tests) checks the metrics against curves with known answers, verifies that filtering does not shift the signal in time, and runs the full protocol end to end, in the terminal app and in the web app, with simulated data and with a simulated Arduino that speaks the real firmware format.
+- **Automated tests.** A pytest suite (34 tests) checks the metrics against curves with known answers, verifies that filtering does not shift the signal in time, and runs the full protocol end to end, in the terminal app and in the web app, with simulated data and with a simulated Arduino that speaks the real firmware format.
 
 ### Example output
 ![Grip strength plotted on Dodds et al. (2014) centile curves](images/centile_plot.png)
@@ -83,6 +83,14 @@ pip install -r requirements.txt
 python webapp.py
 ```
 A browser tab opens at **http://localhost:8000**. Follow the instructions on screen; press **Download PDF** on the final report to save it. The newest report is always at http://localhost:8000/report. The app only accepts connections from this computer. (Port 8000 is used because macOS reserves 5000 for AirPlay.)
+
+### Public online demo
+The repository includes `render.yaml`, so the web app can be published on [Render](https://render.com) for free:
+1. Sign in to Render with GitHub and choose **New → Blueprint**.
+2. Select this repository. Render reads `render.yaml`, installs `requirements.txt`, and starts the app with gunicorn.
+3. After a few minutes the demo is live at `https://<service-name>.onrender.com`.
+
+The online demo runs with `GRIPCHECK_DEMO=1`: every squeeze is simulated (no device can be connected over the internet), each visitor's test is kept separate, and each report is reachable only through its own private link. On the free plan the server sleeps after about 15 minutes without visitors, so the first page load afterwards can take up to a minute.
 
 ### Run in the terminal
 ```bash
@@ -123,6 +131,7 @@ hand-dynamometer/
 ├── grip_compare.py     # Comparison with Dodds et al. (2014) norms and clinical cut-offs
 ├── fake_data.py        # Simulated force-time curves (good and faulty trials) for hardware-free testing
 ├── webapp.py           # Browser version of the test (Flask): same protocol, metrics and report
+├── render.yaml         # Settings for the public online demo on Render
 ├── web/                # Web app pages: index.html, style.css, app.js (live graph, countdown)
 ├── report.py           # HTML session report (live in the terminal app, final in both; prints to PDF)
 ├── filters.py          # Moving-average and Butterworth filters, sample-rate estimate

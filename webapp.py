@@ -1,19 +1,26 @@
 """
-webapp.py - Browser version of the grip test.
+webapp.py - Browser version of the grip test (GripCheck).
 
-Run:   python webapp.py        (a browser tab opens at http://localhost:8000)
+Run on your computer:   python webapp.py      -> a browser tab opens at http://localhost:8000
+Run as the public demo: GRIPCHECK_DEMO=1 gunicorn webapp:app ...   (see render.yaml)
 
 The protocol, metrics, filtering, quality check, saving and report are the SAME code
 as grip_test.py. Only the interaction changes: buttons, a countdown and a live graph
 in the browser instead of typing in the terminal.
 
 How the live graph works (Server-Sent Events):
-  the browser opens /api/step/<n>/stream and keeps the connection open;
+  the browser opens /api/<session id>/step/<n>/stream and keeps the connection open;
   every new force sample is sent down that connection as one small message,
   and the page redraws the graph each time a message arrives.
+
+Several visitors at once:
+  each visitor gets a random session id when they press Continue, and every
+  request carries it, so two people's tests are stored separately.
 """
 
 import json
+import os
+import secrets
 import threading
 import time
 import webbrowser
@@ -38,8 +45,17 @@ HOST, PORT_NUMBER = "127.0.0.1", 8000          # 127.0.0.1 = only this computer 
                                               # (not 5000: macOS AirPlay already uses that port)
 PLAYBACK_DELAY = 1 / fake_data.SAMPLE_RATE_HZ   # play simulated curves at real speed (tests set 0)
 
+# Public demo: simulated data only, short rests, no "newest report" page (it would show strangers' results)
+DEMO = os.environ.get("GRIPCHECK_DEMO") == "1"
+if DEMO:
+    grip_test.USE_FAKE = True
+    grip_test.REST_SECONDS = 3
+
+MAX_SESSIONS = 100                 # forget the oldest unfinished tests beyond this (keeps memory small)
+sessions = {}                      # session id -> that visitor's test
+plot_lock = threading.Lock()       # matplotlib is not safe when two threads draw at the same time
+
 app = Flask(__name__, static_folder=None)
-state = {}   # the one test currently running on this computer
 
 
 # ---------- helpers -------------------------------------------------------
@@ -111,11 +127,19 @@ def sse(event, data):
     return f"event: {event}\ndata: {json.dumps(data)}\n\n"
 
 
-def close_serial():
-    ser = state.get("ser")
-    if ser is not None:
-        ser.close()
+def close_serial(state):
+    if state.get("ser") is not None:
+        state["ser"].close()
         state["ser"] = None
+
+
+def get_session(sid):
+    """The visitor's test, or None if the id is unknown (expired, or never started)."""
+    return sessions.get(sid)
+
+
+def no_session():
+    return jsonify({"error": "This test has expired. Please start again."}), 404
 
 
 # ---------- pages ---------------------------------------------------------
@@ -133,10 +157,12 @@ def web_files(name):
 @app.get("/report")
 @app.get("/report/<path:name>")
 def report_page(name=None):
-    """Short addresses for reports: /report is the newest, /report/<date_time> a specific one.
+    """Short addresses for reports: /report is the newest, /report/<id> a specific one.
     The report's pictures are requested as /report/session_....png and served from the same folder."""
     folder = grip_test.SESSIONS_DIR
     if name is None:
+        if DEMO:
+            return "Reports are private: use the link shown at the end of your own test.", 404
         reports = sorted(folder.glob("session_*_report.html"))
         if not reports:
             return "No reports yet - run a test first.", 404
@@ -153,6 +179,7 @@ def report_page(name=None):
 def config():
     return jsonify({
         "use_fake": grip_test.USE_FAKE,
+        "demo": DEMO,
         "rest_seconds": grip_test.REST_SECONDS,
         "prompt_posture": grip_test.PROMPT_POSTURE,
         "prompt_go": grip_test.PROMPT_GO,
@@ -167,37 +194,47 @@ def start():
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
 
-    close_serial()
     ser = None
     if not grip_test.USE_FAKE:
+        # one device: a new test on this computer replaces any earlier one
+        for old in sessions.values():
+            close_serial(old)
+        sessions.clear()
         try:
             ser = grip_test.connect_serial()
         except RuntimeError as e:
             return jsonify({"error": str(e)}), 400
 
-    state.clear()
-    state.update({
-        "stamp": datetime.now().strftime("%Y-%m-%d_%H-%M-%S"),
-        "user": user,
-        "plan": build_plan(user["dominant"]),
-        "results": {},
-        "ser": ser,
-    })
-    return jsonify({"plan": state["plan"], "needs_tare": ser is not None})
+    while len(sessions) >= MAX_SESSIONS:
+        sessions.pop(next(iter(sessions)))           # dicts keep insertion order: drop the oldest
+
+    sid = secrets.token_hex(8)                       # 16 random characters, impossible to guess
+    stamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    if DEMO:
+        stamp += "_" + sid[:8]                       # unique file names and private report links
+    sessions[sid] = {"stamp": stamp, "user": user, "plan": build_plan(user["dominant"]),
+                     "results": {}, "ser": ser}
+    return jsonify({"session_id": sid, "plan": sessions[sid]["plan"], "needs_tare": ser is not None})
 
 
-@app.post("/api/tare")
-def do_tare():
+@app.post("/api/<sid>/tare")
+def do_tare(sid):
+    state = get_session(sid)
+    if state is None:
+        return no_session()
     if state.get("ser") is None:
         return jsonify({"error": "No device connected."}), 400
     grip_test.tare(state["ser"])
     return jsonify({"ok": True})
 
 
-@app.get("/api/step/<int:index>/stream")
-def stream_step(index):
-    if "plan" not in state or not 0 <= index < len(state["plan"]):
-        return jsonify({"error": "Start a test first."}), 400
+@app.get("/api/<sid>/step/<int:index>/stream")
+def stream_step(sid, index):
+    state = get_session(sid)
+    if state is None:
+        return no_session()
+    if not 0 <= index < len(state["plan"]):
+        return jsonify({"error": "No such trial."}), 400
     step = state["plan"][index]
 
     def events():
@@ -254,12 +291,15 @@ def stream_step(index):
                     headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 
-@app.post("/api/finish")
-def finish():
-    plan = state.get("plan")
-    if not plan or len(state["results"]) != len(plan):
+@app.post("/api/<sid>/finish")
+def finish(sid):
+    state = get_session(sid)
+    if state is None:
+        return no_session()
+    plan = state["plan"]
+    if len(state["results"]) != len(plan):
         return jsonify({"error": "Not every trial has been recorded yet."}), 400
-    close_serial()
+    close_serial(state)
 
     results = [state["results"][i] for i in range(len(plan))]
     trials, fatigue = results[:-1], results[-1]
@@ -269,10 +309,12 @@ def finish():
     summary = grip_test.summarize(trials, fatigue)
     grip_test.save_session(stamp, trials, fatigue, summary)     # save first, as in the terminal app
     result = assess(summary["overall_peak_kg"], user["age"], user["sex"])
-    plot_on_centiles(result, save_path=folder / f"session_{stamp}_centiles.png", show=False)
-    report = make_report(stamp, user, trials, folder, grip_test.USE_FAKE,
-                         fatigue=fatigue, summary=summary, result=result,
-                         open_browser=False, home_url="/")
+    with plot_lock:
+        plot_on_centiles(result, save_path=folder / f"session_{stamp}_centiles.png", show=False)
+        make_report(stamp, user, trials, folder, grip_test.USE_FAKE,
+                    fatigue=fatigue, summary=summary, result=result,
+                    open_browser=False, home_url="/")
+    sessions.pop(sid, None)                                      # finished: free the memory
     return jsonify({"report_url": f"/report/{stamp}"})
 
 

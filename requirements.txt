@@ -6,5 +6,6 @@ pandas>=2.0
 scikit-learn>=1.3
 joblib>=1.3
 flask>=3.0         # web app
+gunicorn>=22.0     # runs the web app on the public demo server
 pyserial>=3.5      # only needed when the Arduino is connected
 pytest>=7.0        # only needed to run the tests

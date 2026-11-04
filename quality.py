@@ -69,7 +69,12 @@ def check_trial(readings):
     """Use the trained model if it exists, otherwise the rules."""
     features = extract_features(readings)
     if MODEL_PATH.exists():
-        return {"label": ml_check(features), "method": "ml", "features": features}
+        try:
+            return {"label": ml_check(features), "method": "ml", "features": features}
+        except Exception:
+            # e.g. the model was saved by a different scikit-learn version on another computer:
+            # fall back to the rules instead of stopping the test
+            pass
     return {"label": rule_check(features), "method": "rules", "features": features}
 
 if __name__ == "__main__":
