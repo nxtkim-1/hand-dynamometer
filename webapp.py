@@ -1,7 +1,7 @@
 """
 webapp.py - Browser version of the grip test.
 
-Run:   python webapp.py        (a browser tab opens at http://127.0.0.1:5000)
+Run:   python webapp.py        (a browser tab opens at http://localhost:8000)
 
 The protocol, metrics, filtering, quality check, saving and report are the SAME code
 as grip_test.py. Only the interaction changes: buttons, a countdown and a live graph
@@ -34,7 +34,8 @@ from grip_compare import assess, plot_on_centiles
 from report import fmt, make_report
 
 WEB_DIR = Path(__file__).parent / "web"
-HOST, PORT_NUMBER = "127.0.0.1", 5000          # 127.0.0.1 = only this computer can open the app
+HOST, PORT_NUMBER = "127.0.0.1", 8000          # 127.0.0.1 = only this computer can open the app
+                                              # (not 5000: macOS AirPlay already uses that port)
 PLAYBACK_DELAY = 1 / fake_data.SAMPLE_RATE_HZ   # play simulated curves at real speed (tests set 0)
 
 app = Flask(__name__, static_folder=None)
@@ -129,10 +130,21 @@ def web_files(name):
     return send_from_directory(WEB_DIR, name)
 
 
-@app.get("/sessions/<path:name>")
-def session_files(name):
+@app.get("/report")
+@app.get("/report/<path:name>")
+def report_page(name=None):
+    """Short addresses for reports: /report is the newest, /report/<date_time> a specific one.
+    The report's pictures are requested as /report/session_....png and served from the same folder."""
+    folder = grip_test.SESSIONS_DIR
+    if name is None:
+        reports = sorted(folder.glob("session_*_report.html"))
+        if not reports:
+            return "No reports yet - run a test first.", 404
+        name = reports[-1].name
+    elif not name.startswith("session_"):
+        name = f"session_{name}_report.html"
     # send_from_directory refuses paths like ../../ so only the sessions folder is reachable
-    return send_from_directory(grip_test.SESSIONS_DIR, name)
+    return send_from_directory(folder, name)
 
 
 # ---------- API -----------------------------------------------------------
@@ -261,11 +273,11 @@ def finish():
     report = make_report(stamp, user, trials, folder, grip_test.USE_FAKE,
                          fatigue=fatigue, summary=summary, result=result,
                          open_browser=False, home_url="/")
-    return jsonify({"report_url": f"/sessions/{report.name}"})
+    return jsonify({"report_url": f"/report/{stamp}"})
 
 
 if __name__ == "__main__":
-    url = f"http://{HOST}:{PORT_NUMBER}"
-    print(f"Grip test running at {url}  (press Ctrl+C here to stop)")
+    url = f"http://localhost:{PORT_NUMBER}"
+    print(f"GripCheck is running at {url}  (press Ctrl+C here to stop)")
     threading.Timer(1.0, lambda: webbrowser.open(url)).start()
     app.run(host=HOST, port=PORT_NUMBER, threaded=True)

@@ -31,7 +31,7 @@ def run_whole_test(client):
 
 
 def test_pages_load(client):
-    assert b"Grip Strength Test" in client.get("/").data
+    assert b"GripCheck" in client.get("/").data
     assert client.get("/web/app.js").status_code == 200
     assert client.get("/api/config").get_json()["use_fake"] in (True, False)
 
@@ -54,6 +54,9 @@ def test_full_web_test_with_simulated_data(client, tmp_path):
     assert "Download PDF" in html                 # PDF button on the final report
     assert "Grip / body weight" in html           # new optional field is used
     assert "ID P01" in html
+    assert "<title>GripCheck report P01" in html        # becomes the PDF file name
+    assert client.get("/report").data.decode() == html   # /report = newest report
+    assert client.get("/report/../grip_test.py").status_code == 404   # cannot escape the folder
     assert 'http-equiv="refresh"' not in html     # final report does not keep reloading
     rows = next(tmp_path.glob("*_summary.csv")).read_text().splitlines()
     assert rows[0].endswith("quality")

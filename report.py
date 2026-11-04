@@ -8,7 +8,7 @@ STYLE = """
 <style>
   body { font-family: -apple-system, Helvetica, Arial, sans-serif;
          max-width: 900px; margin: 40px auto; padding: 0 16px;
-         color: #222; background: #f7f7f9; }
+         color: #1c1917; background: #faf7f4; }
   h1 { margin-bottom: 4px; }
   h2 { margin-top: 36px; }
   .sub { color: #666; margin-top: 0; }
@@ -24,15 +24,15 @@ STYLE = """
   .unit { font-size: 14px; color: #666; font-weight: normal; }
   table { width: 100%; border-collapse: collapse; background: white; }
   th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #eee; }
-  th { background: #f0f0f4; font-size: 13px; color: #555; }
+  th { background: #f3efeb; font-size: 13px; color: #555; }
   .bad { color: #b45309; font-weight: 600; }
   img { width: 100%; background: white; border-radius: 12px; margin: 12px 0; }
   .note { font-size: 13px; color: #888; margin-top: 32px; }
   .toolbar { display: flex; gap: 10px; margin: 16px 0; }
   .btn { font: inherit; font-weight: 600; padding: 10px 18px; border-radius: 10px;
-         border: 1px solid #0f766e; background: #0f766e; color: white;
+         border: 1px solid #c2410c; background: #c2410c; color: white;
          cursor: pointer; text-decoration: none; }
-  .btn.secondary { background: white; color: #0f766e; }
+  .btn.secondary { background: white; color: #c2410c; }
   .caution { background: #fde8e8; border: 1px solid #f5b5b5; }
   /* PDF: the browser's "Save as PDF" prints exactly this page, minus the buttons */
   @page { size: A4; margin: 14mm; }
@@ -185,16 +185,18 @@ def make_report(stamp, user, trials, folder, is_fake=True,
 <img src="session_{stamp}_centiles.png" alt="Centile plot">
 </section>"""
 
-    html = f"""<!DOCTYPE html>
+    # the page title becomes the default file name when the report is saved as a PDF
+    page_title = " ".join(p for p in ["GripCheck report", html.escape(str(user.get("participant_id") or "")), stamp] if p)
+    html_text = f"""<!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8">
 {refresh}
-<title>Grip test {stamp}</title>
+<title>{page_title}</title>
 {STYLE}
 </head>
 <body>
-<h1>Grip Strength Report</h1>
+<h1>GripCheck Report</h1>
 <p class="sub">{describe_user(stamp, user)}</p>
 {toolbar}
 {banners}
@@ -216,7 +218,7 @@ Educational project - not a medical device and not a diagnosis.</p>
 </html>
 """
     with open(report_path, "w", encoding="utf-8") as f:
-        f.write(html)
+        f.write(html_text)
     if first_time and open_browser:
         webbrowser.open(report_path.resolve().as_uri())
     return report_path
