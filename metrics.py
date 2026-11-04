@@ -1,4 +1,5 @@
 G = 9.81 # 1 kg of force = 9.81 newtons
+MIN_RFD_POINTS = 5  # fewer points than this in the RFD window -> slope is unreliable (e.g. 10 Hz data gives only 3)
 
 def find_peak(readings):
     """Return the reading with the highest score"""
@@ -43,7 +44,7 @@ def rfd_n_per_s(readings, window_ms=200): #힘이 얼마나 빠른 속도로 증
             xs.append(r["time_ms"]/1000) #1초로 만들기 위해서
             ys.append(r["force_kg"] * G)
 
-    if len(xs) < 2: #직선에 기울기를 찾을려면 점이 2개가 필요해서 그 미만이면 애초에 필요없다
+    if len(xs) < MIN_RFD_POINTS: #점이 너무 적으면 기울기를 믿을 수 없어서 계산하지 않음 (10 Hz면 200 ms에 점 3개뿐)
         return None
     slope, intercept = fit_line(xs, ys) #둘중에 slope만 필요해서 intercept는 필요없다
     return slope
@@ -61,6 +62,8 @@ def fatigue_index_pct(readings, squeeze_ms = 30000, final_window_ms = 1000): #�
 
 def asymmetry(left_kg, right_kg):
     """Left/right ratio, and how much weaker the weaker hand is (in %)"""
+    if left_kg <= 0 or right_kg <= 0:   # a hand that produced no force -> ratio is meaningless
+        return None, None
     ratio = left_kg / right_kg
     weaker_pct = abs(left_kg - right_kg) / max(left_kg, right_kg) * 100 #absolute sign
     return ratio, weaker_pct
