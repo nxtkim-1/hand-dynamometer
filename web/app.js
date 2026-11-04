@@ -1,9 +1,9 @@
-// Grip Strength Test - browser side.
+// GripCheck - browser side.
 // The server (webapp.py) does all measuring and maths; this file only shows screens,
 // runs the 3-2-1 countdown, and draws the live graph from the points the server sends.
 
 const $ = (id) => document.getElementById(id);
-const COLORS = { right: "#0f766e", left: "#4f46e5", fatigue: "#be123c" };
+const COLORS = { right: "#c2410c", left: "#6d28d9", fatigue: "#be185d" };
 
 const app = {
   config: null,
@@ -75,7 +75,7 @@ function drawChart() {
 
   // grid and labels
   ctx.font = "12px -apple-system, Helvetica, Arial, sans-serif";
-  ctx.fillStyle = "#5b6875"; ctx.strokeStyle = "#e6eaef"; ctx.lineWidth = 1;
+  ctx.fillStyle = "#57534e"; ctx.strokeStyle = "#ece6e0"; ctx.lineWidth = 1;
   const yStep = yMax > 100 ? 20 : 10;
   for (let kg = 0; kg <= yMax; kg += yStep) {
     ctx.beginPath(); ctx.moveTo(pad.l, y(kg)); ctx.lineTo(w - pad.r, y(kg)); ctx.stroke();
@@ -92,7 +92,7 @@ function drawChart() {
   for (const [i, trace] of Object.entries(app.traces)) {
     const other = app.plan[i];
     if (Number(i) === app.index || other.hand !== step.hand || other.test !== step.test) continue;
-    line(ctx, trace, x, y, "rgba(91,104,117,.28)", 1.5);
+    line(ctx, trace, x, y, "rgba(87,83,78,.25)", 1.5);
   }
 
   if (app.points.length < 2) return;
