@@ -48,6 +48,7 @@ Grip strength is a validated clinical measure and a diagnostic criterion for sar
 
 ## Features
 
+- **Web app.** `python webapp.py` opens the test in the browser: a participant form (age, sex, dominant hand, and optional ID, height, weight and injury history), posture instructions, a 3-2-1 countdown, a live force graph, immediate feedback on each trial with the option to repeat it, timed rest periods, and a final report that can be saved as a PDF with the same layout.
 - **Standardized protocol.** The application guides the user through three maximal trials per hand, alternating hands to allow recovery, followed by a 30-second sustained-effort fatigue test. Posture instructions and verbal encouragement are fixed in the code so that every trial is administered identically, in keeping with the American Society of Hand Therapists (ASHT) recommendations.
 - **Live visualization.** Force is plotted in real time on a scrolling five-second window while each trial is recorded.
 - **Five force-time metrics.** Peak force, time to peak force, rate of force development (RFD), fatigue index, and bilateral asymmetry are computed for every session.
@@ -59,7 +60,7 @@ Grip strength is a validated clinical measure and a diagnostic criterion for sar
 - **Session history.** `history.py` uses pandas to combine every saved session into a dashboard of best peak force, coefficient of variation, and fatigue index over time.
 - **Automatic trial-quality check.** Each maximal trial is classified as good, false start, slip, or submaximal effort from five shape features, and the operator is warned immediately so that the trial can be repeated. A Random Forest trained on 2,000 synthetic curves reached 99% test accuracy, compared with 92% for hand-tuned rules. Because the training data are simulated, this result demonstrates the pipeline rather than accuracy on real users.
 - **Hardware safeguards.** The app accepts both the simulator's two-column format and the firmware's four-column format, measures the real sample rate of every recording, adapts the filter to it, reports RFD as n/a when sampling is too slow to estimate it, and stops with a clear message if the firmware has not been calibrated.
-- **Automated tests.** A pytest suite (21 tests) checks the metrics against curves with known answers, verifies that filtering does not shift the signal in time, and runs the full protocol end to end with simulated data and with a simulated Arduino that speaks the real firmware format.
+- **Automated tests.** A pytest suite (30 tests) checks the metrics against curves with known answers, verifies that filtering does not shift the signal in time, and runs the full protocol end to end, in the terminal app and in the web app, with simulated data and with a simulated Arduino that speaks the real firmware format.
 
 ### Example output
 ![Grip strength plotted on Dodds et al. (2014) centile curves](images/centile_plot.png)
@@ -77,7 +78,13 @@ Python 3.9 or later.
 pip install -r requirements.txt
 ```
 
-### Run with simulated data (no hardware required)
+### Run the web app (recommended)
+```bash
+python webapp.py
+```
+A browser tab opens at http://127.0.0.1:5000. Follow the instructions on screen; press **Download PDF** on the final report to save it. The app only accepts connections from this computer.
+
+### Run in the terminal
 ```bash
 python grip_test.py
 ```
@@ -115,7 +122,9 @@ hand-dynamometer/
 ├── metrics.py          # Peak force, time to peak, RFD, fatigue index, asymmetry
 ├── grip_compare.py     # Comparison with Dodds et al. (2014) norms and clinical cut-offs
 ├── fake_data.py        # Simulated force-time curves (good and faulty trials) for hardware-free testing
-├── report.py           # Live HTML session report
+├── webapp.py           # Browser version of the test (Flask): same protocol, metrics and report
+├── web/                # Web app pages: index.html, style.css, app.js (live graph, countdown)
+├── report.py           # HTML session report (live in the terminal app, final in both; prints to PDF)
 ├── filters.py          # Moving-average and Butterworth filters, sample-rate estimate
 ├── history.py          # pandas dashboard of all sessions
 ├── quality.py          # Rule-based and ML trial-quality check

@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Grip Strength Test</title>
+<link rel="stylesheet" href="/web/style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><span class="logo" aria-hidden="true"></span>Grip Strength Test</div>
+  <span id="mode-badge" class="badge" hidden></span>
+</header>
+
+<main>
+  <ol id="progress" class="progress" aria-label="Test progress" hidden></ol>
+
+  <!-- 1. Welcome -->
+  <section id="screen-welcome" class="screen card">
+    <p class="eyebrow">Hand dynamometer</p>
+    <h1>How strong is your grip?</h1>
+    <p class="lead">This test measures how hard you can squeeze, how quickly your force rises,
+      and how well you keep squeezing over time.</p>
+    <ol class="overview">
+      <li><span class="num">1</span><div><b>Six short squeezes</b><br>Three per hand, alternating, five seconds each.</div></li>
+      <li><span class="num">2</span><div><b>One long squeeze</b><br>Thirty seconds with your dominant hand.</div></li>
+      <li><span class="num">3</span><div><b>Your report</b><br>Compared with people of your age and sex, and saved as a PDF.</div></li>
+    </ol>
+    <p class="muted small">Educational project. This is not a medical device and does not give a diagnosis.</p>
+    <button class="btn primary" id="btn-welcome">Begin</button>
+  </section>
+
+  <!-- 2. Participant details -->
+  <section id="screen-form" class="screen card" hidden>
+    <p class="eyebrow">Step 1 of 3</p>
+    <h2>About the participant</h2>
+    <p class="muted">Age and sex select the right comparison group. The other fields are optional.</p>
+    <form id="user-form" novalidate>
+      <div class="grid">
+        <label class="field"><span class="label-row">Participant ID <span class="opt">optional</span></span>
+          <input name="participant_id" maxlength="40" autocomplete="off" placeholder="e.g. P01">
+        </label>
+        <label class="field"><span class="label-row">Age <span class="req">required</span></span>
+          <input name="age" type="number" inputmode="numeric" min="5" max="100" required placeholder="5 - 100">
+        </label>
+      </div>
+      <fieldset class="field">
+        <legend>Sex <span class="req">required</span></legend>
+        <div class="segmented">
+          <label><input type="radio" name="sex" value="female"><span>Female</span></label>
+          <label><input type="radio" name="sex" value="male"><span>Male</span></label>
+        </div>
+      </fieldset>
+      <fieldset class="field">
+        <legend>Dominant hand <span class="req">required</span></legend>
+        <div class="segmented">
+          <label><input type="radio" name="dominant" value="right" checked><span>Right</span></label>
+          <label><input type="radio" name="dominant" value="left"><span>Left</span></label>
+        </div>
+      </fieldset>
+      <div class="grid">
+        <label class="field"><span class="label-row">Height (cm) <span class="opt">optional</span></span>
+          <input name="height_cm" type="number" inputmode="decimal" min="100" max="230" placeholder="e.g. 175">
+        </label>
+        <label class="field"><span class="label-row">Weight (kg) <span class="opt">optional</span></span>
+          <input name="weight_kg" type="number" inputmode="decimal" min="20" max="250" placeholder="e.g. 70">
+        </label>
+      </div>
+      <label class="check">
+        <input type="checkbox" name="injury">
+        <span>Pain or injury in either hand, wrist or elbow in the last six months</span>
+      </label>
+      <p id="form-error" class="error" role="alert" hidden></p>
+      <button class="btn primary" type="submit" id="btn-form">Continue</button>
+    </form>
+  </section>
+
+  <!-- 3. Zero the device (real hardware only) -->
+  <section id="screen-tare" class="screen card" hidden>
+    <p class="eyebrow">Step 2 of 3</p>
+    <h2>Zero the device</h2>
+    <p class="lead">Place the dynamometer on the table and let go of it completely.
+      Nothing should touch the handle while it is being zeroed.</p>
+    <p id="tare-error" class="error" role="alert" hidden></p>
+    <button class="btn primary" id="btn-tare">Zero now</button>
+  </section>
+
+  <!-- 4. Trials -->
+  <section id="screen-trial" class="screen card" hidden>
+    <div class="trial-head">
+      <div>
+        <p class="eyebrow" id="trial-eyebrow"></p>
+        <h2 id="trial-title"></h2>
+      </div>
+      <span id="hand-chip" class="hand-chip"></span>
+    </div>
+
+    <ul id="posture" class="posture" aria-label="Posture"></ul>
+
+    <div class="chart-wrap">
+      <canvas id="chart" aria-label="Force over time" role="img"></canvas>
+      <div id="overlay" class="overlay" aria-live="assertive" hidden></div>
+    </div>
+
+    <div class="readout" aria-live="polite">
+      <div><span class="label">Force</span><span class="value" id="live-force">0.0</span><span class="unit">kg</span></div>
+      <div><span class="label">Peak</span><span class="value" id="live-peak">0.0</span><span class="unit">kg</span></div>
+      <div><span class="label">Time left</span><span class="value" id="live-left">-</span><span class="unit">s</span></div>
+    </div>
+
+    <p id="go-text" class="go-text" hidden></p>
+
+    <div id="trial-result" class="result" aria-live="polite" hidden></div>
+    <p id="trial-error" class="error" role="alert" hidden></p>
+
+    <div class="actions">
+      <button class="btn primary" id="btn-primary">I'm ready</button>
+      <button class="btn secondary" id="btn-repeat" hidden>Repeat this trial</button>
+      <div id="rest" class="rest" hidden>
+        <span>Rest <b id="rest-left">0</b> s</span>
+        <button class="btn link" id="btn-skip">Skip</button>
+      </div>
+    </div>
+    <p class="muted small hint">Tip: press <kbd>Enter</kbd> for the highlighted button.</p>
+  </section>
+
+  <!-- 5. Building the report -->
+  <section id="screen-finish" class="screen card center" hidden>
+    <div class="spinner" aria-hidden="true"></div>
+    <h2>Building your report</h2>
+    <p class="muted">Comparing your results with the normative data.</p>
+    <p id="finish-error" class="error" role="alert" hidden></p>
+  </section>
+</main>
+
+<script src="/web/app.js"></script>
+</body>
+</html>
