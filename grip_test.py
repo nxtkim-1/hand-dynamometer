@@ -29,7 +29,7 @@ MAX_PLAUSIBLE_KG = 150   # the load cell is rated 100 kg; anything far above mea
 MIN_RATE_HZ = 40         # below this, RFD is unreliable (the firmware's default HX711 rate is 10 Hz)
 
 PROMPT_POSTURE = "Sit upright, elbow at 90 degrees, forearm neutral, wrist straight."
-PROMPT_GO = "Squeeze as hard as you can! Harder... harder... harder..."
+PROMPT_GO = "Show Off Your Strength! Squeeze as hard as you can!"
 PROMPT_FATIGUE = "Squeeze as hard as you can and KEEP squeezing for 30 seconds!"
 
 def ask_user_info():
