@@ -62,7 +62,7 @@ def ml_check(features):
         import joblib
         _model = joblib.load(MODEL_PATH)
     import pandas as pd
-    row = pd.DataFrame([features][FEATURE_NAMES])
+    row = pd.DataFrame([features])[FEATURE_NAMES]
     return _model.predict(row)[0]
 
 def check_trial(readings):
