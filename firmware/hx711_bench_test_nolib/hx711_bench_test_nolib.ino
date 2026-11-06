@@ -1,42 +1,42 @@
 // HX711 bench test WITHOUT any library (gate G1).
-// Talks to the HX711 directly: wait for DT to go LOW, clock out 24 bits, 1 extra pulse = channel A, gain 128.
-// Wiring: HX711 GND -> Nano GND, DT -> D3, SCK -> D2, VCC -> 5V
-// Serial Monitor at 115200 baud. Pass: the number moves by tens of thousands when the cell is pressed
-// (about 43,000 counts per kg) and comes back when released.
+// Wiring: HX711 GND -> Nano GND, VCC -> 5V, DT -> D3, SCK -> D2
+// Serial Monitor at 115200 baud.
+// Pass: the number jumps by tens of thousands when you press the cell
+// (about 43,000 counts per kg) and comes back when you let go.
 
-const int DT_PIN  = 3;   // HX711 DT  -> D3
-const int SCK_PIN = 2;   // HX711 SCK -> D2
-
-// Returns true and puts the reading in 'value' if the HX711 answered within 1 s.
-bool readHX711(long &value) {
-  unsigned long start = millis();
-  while (digitalRead(DT_PIN) == HIGH) {          // HIGH = no new reading yet
-    if (millis() - start > 1000) return false;
-  }
-  long v = 0;
-  noInterrupts();                                 // SCK must not stay HIGH longer than 60 us
-  for (int i = 0; i < 24; i++) {
-    digitalWrite(SCK_PIN, HIGH);
-    delayMicroseconds(1);
-    v = (v << 1) | digitalRead(DT_PIN);           // most significant bit first
-    digitalWrite(SCK_PIN, LOW);
-    delayMicroseconds(1);
-  }
-  digitalWrite(SCK_PIN, HIGH);                    // 25th pulse: next reading on channel A, gain 128
-  delayMicroseconds(1);
-  digitalWrite(SCK_PIN, LOW);
-  interrupts();
-  if (v & 0x800000L) v |= 0xFF000000L;            // 24-bit two's complement -> negative long
-  value = v;
-  return true;
-}
+const int DT_PIN  = 3;   // HX711 DT
+const int SCK_PIN = 2;   // HX711 SCK
 
 void setup() {
   Serial.begin(115200);
-  pinMode(DT_PIN, INPUT);
   pinMode(SCK_PIN, OUTPUT);
-  digitalWrite(SCK_PIN, LOW);                     // SCK held HIGH > 60 us powers the HX711 down
-  Serial.println("starting (no library)...");
+  pinMode(DT_PIN, INPUT);
+  digitalWrite(SCK_PIN, LOW);
+  Serial.println("starting...");
+}
+
+// Returns true and fills 'out' if the HX711 answered within 1 second.
+bool readHX711(long &out) {
+  unsigned long t0 = millis();
+  while (digitalRead(DT_PIN) == HIGH) {          // DT goes LOW when a reading is ready
+    if (millis() - t0 > 1000) return false;
+  }
+  long value = 0;
+  noInterrupts();                                // SCK must not stay HIGH too long
+  for (int i = 0; i < 24; i++) {                 // 24 bits, most significant first
+    digitalWrite(SCK_PIN, HIGH);
+    delayMicroseconds(1);
+    value = (value << 1) | digitalRead(DT_PIN);
+    digitalWrite(SCK_PIN, LOW);
+    delayMicroseconds(1);
+  }
+  digitalWrite(SCK_PIN, HIGH);                   // 25th pulse: next reading uses gain 128, channel A
+  delayMicroseconds(1);
+  digitalWrite(SCK_PIN, LOW);
+  interrupts();
+  if (value & 0x800000L) value |= 0xFF000000L;   // sign-extend the 24-bit number
+  out = value;
+  return true;
 }
 
 void loop() {
