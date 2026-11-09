@@ -123,20 +123,31 @@ def plot_on_centiles(result, norms=None, save_path=None, show = True):
     rows = [r for r in norms if r["sex"] == result["sex"]]
     ages = [r["age"] for r in rows]
  
-    fig, ax = plt.subplots()
+    # colours match web/tokens.css (paper, ink, muted, rule, accent) so the report looks like the app
+    ink, muted, rule, accent = "#1c1917", "#57534e", "#e7e2dd", "#c2410c"
+    fig, ax = plt.subplots(figsize=(8, 4.5))
     ax.fill_between(ages, [r["p10"] for r in rows], [r["p90"] for r in rows],
-                    alpha=0.15, label="10th-90th centile")
+                    color="#f3efeb", label="10th-90th centile")
     ax.fill_between(ages, [r["p25"] for r in rows], [r["p75"] for r in rows],
-                    alpha=0.3, label="25th-75th centile")
-    ax.plot(ages, [r["p50"] for r in rows], label="Median (50th)")
-    ax.scatter([result["age"]], [result["force"]], color="red", s=80,
-               zorder=5, label="My measurement")
-    ax.set_xlabel("Age (years)")
-    ax.set_ylabel("Grip strength (kg)")
-    ax.set_title(f"Dodds et al. (2014) norms - {result['sex']}")
-    ax.legend()
+                    color="#e7ddd3", label="25th-75th centile")
+    ax.plot(ages, [r["p50"] for r in rows], color=muted, linewidth=2, label="Median (50th)")
+    ax.scatter([result["age"]], [result["force"]], color=accent, edgecolor="white", linewidth=1.5,
+               s=110, zorder=5, label="My measurement")
+    ax.set_xlabel("Age (years)", color=muted)
+    ax.set_ylabel("Grip strength (kg)", color=muted)
+    ax.set_title(f"Dodds et al. (2014) norms, {result['sex']}", loc="left",
+                 fontsize=13, fontweight="bold", color=ink)
+    ax.grid(True, color=rule, linewidth=0.8)
+    ax.set_axisbelow(True)
+    for side in ("top", "right"):
+        ax.spines[side].set_visible(False)
+    for side in ("left", "bottom"):
+        ax.spines[side].set_color(rule)
+    ax.tick_params(colors=muted, labelsize=11)
+    ax.legend(frameon=False, fontsize=10)
+    fig.tight_layout()
     if save_path is not None:
-        fig.savefig(save_path)
+        fig.savefig(save_path, dpi=150)
     if show:
         plt.show()
     else:

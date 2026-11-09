@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>GripCheck</title>
+<meta name="description" content="GripCheck guides a standard grip strength test, draws your force live and compares the result with published norms.">
 <link rel="stylesheet" href="/web/style.css">
 </head>
 <body>
@@ -17,7 +18,6 @@
 
   <!-- 1. Welcome -->
   <section id="screen-welcome" class="screen card">
-    <p class="eyebrow">GripCheck</p>
     <h1>How strong is your grip?</h1>
     <p class="lead">This test measures how hard you can squeeze, how quickly your force rises,
       and how well you keep squeezing over time.</p>
@@ -36,8 +36,8 @@
 
   <!-- 2. Participant details -->
   <section id="screen-form" class="screen card" hidden>
-    <p class="eyebrow">Step 1 of 3</p>
     <h2>About the participant</h2>
+    <p class="step-label">Step 1 of 3</p>
     <p class="muted">Age and sex select the right comparison group. The other fields are optional.</p>
     <form id="user-form" novalidate>
       <div class="grid">
@@ -81,8 +81,8 @@
 
   <!-- 3. Zero the device (real hardware only) -->
   <section id="screen-tare" class="screen card" hidden>
-    <p class="eyebrow">Step 2 of 3</p>
     <h2>Zero the device</h2>
+    <p class="step-label">Step 2 of 3</p>
     <p class="lead">Place the dynamometer on the table and let go of it completely.
       Nothing should touch the handle while it is being zeroed.</p>
     <p id="tare-error" class="error" role="alert" hidden></p>
@@ -93,8 +93,8 @@
   <section id="screen-trial" class="screen card" hidden>
     <div class="trial-head">
       <div>
-        <p class="eyebrow" id="trial-eyebrow"></p>
         <h2 id="trial-title"></h2>
+        <p class="step-label" id="trial-eyebrow"></p>
       </div>
       <span id="hand-chip" class="hand-chip"></span>
     </div>
@@ -106,7 +106,7 @@
       <div id="overlay" class="overlay" aria-live="assertive" hidden></div>
     </div>
 
-    <div class="readout" aria-live="polite">
+    <div class="readout">
       <div><span class="label">Force</span><span class="value" id="live-force">0.0</span><span class="unit">kg</span></div>
       <div><span class="label">Peak</span><span class="value" id="live-peak">0.0</span><span class="unit">kg</span></div>
       <div><span class="label">Time left</span><span class="value" id="live-left">-</span><span class="unit">s</span></div>
@@ -118,7 +118,7 @@
     <p id="trial-error" class="error" role="alert" hidden></p>
 
     <div class="actions">
-      <button class="btn primary" id="btn-primary">I'm ready</button>
+      <button class="btn primary" id="btn-primary">I’m ready</button>
       <button class="btn secondary" id="btn-repeat" hidden>Repeat this trial</button>
       <div id="rest" class="rest" hidden>
         <span>Rest <b id="rest-left">0</b> s</span>
