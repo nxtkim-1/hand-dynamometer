@@ -3,7 +3,11 @@
 // runs the 3-2-1 countdown, and draws the live graph from the points the server sends.
 
 const $ = (id) => document.getElementById(id);
-const COLORS = { right: "#c2410c", left: "#6d28d9", fatigue: "#be185d" };
+// colours and the font come from web/tokens.css, so the graph always matches the page
+const css = getComputedStyle(document.documentElement);
+const token = (name) => css.getPropertyValue(name).trim();
+const COLORS = { right: token("--color-right"), left: token("--color-left"), fatigue: token("--color-fatigue") };
+const INK = { muted: token("--color-muted"), rule: token("--color-rule"), font: token("--font-body") };
 
 const app = {
   config: null,
@@ -50,7 +54,7 @@ function renderProgress() {
     li.textContent = step.test === "fatigue" ? "30 s" : `${step.hand[0].toUpperCase()}${step.trial}`;
     li.title = step.test === "fatigue" ? "Fatigue test" : `${cap(step.hand)} hand, trial ${step.trial}`;
     if (i < app.index || (i === app.index && app.phase === "resting")) li.className = app.flags[i] ? "flag" : "done";
-    if (i === app.index && app.phase !== "resting") li.className = "current";
+    if (i === app.index && app.phase !== "resting") { li.className = "current"; li.setAttribute("aria-current", "step"); }
     list.appendChild(li);
   });
 }
@@ -75,8 +79,8 @@ function drawChart() {
   const y = (kg) => h - pad.b - (Math.max(0, kg) / yMax) * (h - pad.t - pad.b);
 
   // grid and labels
-  ctx.font = "12px -apple-system, Helvetica, Arial, sans-serif";
-  ctx.fillStyle = "#57534e"; ctx.strokeStyle = "#ece6e0"; ctx.lineWidth = 1;
+  ctx.font = `12px ${INK.font}`;
+  ctx.fillStyle = INK.muted; ctx.strokeStyle = INK.rule; ctx.lineWidth = 1;
   const yStep = yMax > 100 ? 20 : 10;
   for (let kg = 0; kg <= yMax; kg += yStep) {
     ctx.beginPath(); ctx.moveTo(pad.l, y(kg)); ctx.lineTo(w - pad.r, y(kg)); ctx.stroke();
@@ -93,7 +97,7 @@ function drawChart() {
   for (const [i, trace] of Object.entries(app.traces)) {
     const other = app.plan[i];
     if (Number(i) === app.index || other.hand !== step.hand || other.test !== step.test) continue;
-    line(ctx, trace, x, y, "rgba(87,83,78,.25)", 1.5);
+    ctx.globalAlpha = 0.3; line(ctx, trace, x, y, INK.muted, 1.5); ctx.globalAlpha = 1;
   }
 
   if (app.points.length < 2) return;
@@ -102,14 +106,14 @@ function drawChart() {
   ctx.beginPath(); ctx.moveTo(x(app.points[0].t / 1000), y(0));
   for (const p of app.points) ctx.lineTo(x(p.t / 1000), y(p.f));
   ctx.lineTo(x(app.points[app.points.length - 1].t / 1000), y(0)); ctx.closePath();
-  ctx.fillStyle = color + "1f"; ctx.fill();
+  ctx.fillStyle = color; ctx.globalAlpha = 0.12; ctx.fill(); ctx.globalAlpha = 1;
   line(ctx, app.points, x, y, color, 2.5);
 
   // peak marker
   const top = app.points.reduce((a, b) => (b.f > a.f ? b : a));
   ctx.fillStyle = color;
   ctx.beginPath(); ctx.arc(x(top.t / 1000), y(top.f), 5, 0, Math.PI * 2); ctx.fill();
-  ctx.textAlign = "left"; ctx.font = "600 13px -apple-system, Helvetica, Arial, sans-serif";
+  ctx.textAlign = "left"; ctx.font = `600 13px ${INK.font}`;
   ctx.fillText(`${top.f.toFixed(1)} kg`, Math.min(x(top.t / 1000) + 8, w - 70), y(top.f) - 8);
 }
 
@@ -143,12 +147,12 @@ function showTrial() {
 
   const isFatigue = step.test === "fatigue";
   const perHand = app.plan.filter((s) => s.test === "max").length / 2;
-  $("trial-eyebrow").textContent = isFatigue ? "Fatigue test" : `Maximal grip · Trial ${step.trial} of ${perHand}`;
+  $("trial-eyebrow").textContent = isFatigue ? "Fatigue test" : `Maximal grip, trial ${step.trial} of ${perHand}`;
   $("trial-title").textContent = isFatigue
     ? `Squeeze and hold for 30 seconds` : `Squeeze as hard as you can`;
   const chip = $("hand-chip");
   chip.textContent = `${cap(step.hand)} hand`;
-  chip.style.background = stepColor(step);
+  chip.className = `hand-chip ${isFatigue ? "fatigue" : step.hand}`;
 
   $("posture").innerHTML = app.config.prompt_posture.replace(/\.$/, "").split(", ")
     .map((p) => `<li>${cap(p)}</li>`).join("");
@@ -161,7 +165,8 @@ function showTrial() {
   $("trial-error").hidden = true;
   $("btn-repeat").hidden = true;
   $("rest").hidden = true;
-  setPrimary("I'm ready");
+  setPrimary("I’m ready");
+  $("chart").setAttribute("aria-label", "Force over time. The graph fills in while you squeeze.");
   requestDraw();
   $("btn-primary").focus();
 }
@@ -209,6 +214,7 @@ function finishTrial(result) {
   app.traces[app.index] = app.points.slice();
   $("go-text").hidden = true;
   $("live-left").textContent = "0";
+  $("chart").setAttribute("aria-label", `Force over time. Peak ${result.peak_kg} kg, reached after ${result.time_to_peak_ms} ms.`);
 
   const chips = [`<span class="chip">Peak (filtered) <b>${result.peak_kg}</b> kg</span>`,
                  `<span class="chip">Time to peak <b>${result.time_to_peak_ms}</b> ms</span>`,
