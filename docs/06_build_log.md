@@ -294,3 +294,5 @@ Superseded outputs (round-pod parts, dish v2, earlier drafts) were moved to `cad
 **Next:** G2 (build into the v3 box, then squeeze test). The firmware in `firmware/grip_firmware/` and the tutorial steps use Bogdan Necula's library; they need porting if Thomas stays on Tillaart's.
 
 **2026-11-06 (evening) — box built; firmware ported.** Thomas reports everything put together in the v3 box. `firmware/grip_firmware_tillaart/` is v1.0 ported to Rob Tillaart's library (uses only begin/is_ready/read; averaging written out), `SIGN = -1` from the bench result. Not compiled against the real library here.
+
+**2026-11-12 (01:30) — G2 reported done by Thomas.** Assembled v3 grip with `firmware/grip_firmware_tillaart/` (SIGN = -1). Thomas reports G2 done; the actual `net` values at hardest squeeze and after release were not given yet. Thomas to add: peak `net`, value after release, whether SIGN stayed -1, and a photo. **Next:** G3 calibration (counts per kg with known masses); the v3 calibration cradle is not designed yet.
