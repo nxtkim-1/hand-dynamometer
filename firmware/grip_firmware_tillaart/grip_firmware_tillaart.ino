@@ -21,8 +21,10 @@ const int PIN_DOUT = 3;   // HX711 DT
 const int PIN_SCK  = 2;   // HX711 SCK
 
 // ---- Calibration --------------------------------------------------
-// Counts per kilogram. Leave at 1.0 until G3 (calibration), then paste the measured value here.
-const float COUNTS_PER_KG = 1.0;
+// Counts per kilogram. PROVISIONAL: 42952 is the datasheet-based estimate for a 100 kg CZL601
+// (2.0 mV/V, 5 V excitation, gain 128). It is NOT measured, expect +/-5-10 %.
+// After G3 (hanging known masses) replace it with the fitted value from software/calibrate.py.
+const float COUNTS_PER_KG = 42952.0;
 
 // Your cell read NEGATIVE when pressed on the bench, so this starts at -1.
 // If a squeeze of the assembled grip still shows a negative 'net', change it to 1.
