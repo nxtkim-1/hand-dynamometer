@@ -1,4 +1,6 @@
+import argparse
 import csv
+import os
 import time
 from datetime import datetime
 from pathlib import Path
@@ -14,7 +16,9 @@ from report import fmt, make_report
 
 
 USE_FAKE = True
-PORT = "/dev/cu.usbserial-XXXX" #PORT는 컴퓨터가 Arduino와 통신하는 연결 경로야
+# "auto" finds the Arduino by its USB chip, so nobody has to edit this file.
+# To force a port: python webapp.py --device --port COM7   (or set GRIPCHECK_PORT)
+PORT = os.environ.get("GRIPCHECK_PORT", "auto") #PORT는 컴퓨터가 Arduino와 통신하는 연결 경로야
 BAUD = 115200 #match with arduino code
 
 TRIALS_PER_HAND = 3
@@ -27,6 +31,16 @@ SESSIONS_DIR = Path(__file__).parent / "sessions" #파일을 만드는 경로만
 # Sanity limits for real hardware
 MAX_PLAUSIBLE_KG = 150   # the load cell is rated 100 kg; anything far above means "not calibrated yet"
 MIN_RATE_HZ = 40         # below this, RFD is unreliable (the firmware's default HX711 rate is 10 Hz)
+
+# How the firmware's COUNTS_PER_KG was obtained:
+#   "estimated" = from the load-cell datasheet (current state, about +/-10 %)
+#   "measured"  = fitted from known masses (docs/04_calibration.md). Change this after calibrating.
+CALIBRATION = os.environ.get("GRIPCHECK_CALIBRATION", "estimated")
+CALIBRATION_NOTE = ("Forces are estimated from the load-cell datasheet (about \u00b110%), not from a measured "
+                    "calibration, so peak values and percentiles are approximate.")
+
+# USB chips used by Arduino Nano boards and clones (vendor IDs)
+USB_SERIAL_CHIPS = {0x2341: "Arduino", 0x2A03: "Arduino", 0x1A86: "CH340", 0x0403: "FTDI", 0x10C4: "CP210x"}
 
 PROMPT_POSTURE = "Sit upright, elbow at 90 degrees, forearm neutral, wrist straight."
 PROMPT_GO = "Show Off Your Strength! Squeeze as hard as you can!"
@@ -47,16 +61,53 @@ def ask_user_info():
         dominant = input("Please type right or left: ").strip().lower()
     return age, sex, dominant
 
+def calibration_note(is_fake):
+    """Text for reports and the web page when real forces come from an estimated scale factor."""
+    return None if is_fake or CALIBRATION == "measured" else CALIBRATION_NOTE
+
+
+def find_arduino_port():
+    """Return the serial port of the one connected Arduino, found by its USB chip."""
+    from serial.tools import list_ports
+    ports = list(list_ports.comports())
+    matches = [p.device for p in ports if p.vid in USB_SERIAL_CHIPS]
+    if len(matches) == 1:
+        return matches[0]
+    seen = [p.device for p in ports]
+    if not matches:
+        raise RuntimeError("No Arduino found. Check the USB cable (it must be a data cable, not charge-only) "
+                           f"and close the Arduino IDE's Serial Monitor. Ports seen: {seen}")
+    raise RuntimeError(f"Several possible Arduinos: {matches}. Choose one, e.g. "
+                       f"python webapp.py --device --port {matches[0]}")
+
+
+def use_device(port=None):
+    """Switch from simulated data to the real device (what --device does)."""
+    global USE_FAKE, REST_SECONDS, PORT
+    USE_FAKE = False
+    REST_SECONDS = 60
+    if port:
+        PORT = port
+
+
+def device_args(parser):
+    """The two command-line options shared by grip_test.py and webapp.py."""
+    parser.add_argument("--device", action="store_true", help="use the real dynamometer instead of simulated data")
+    parser.add_argument("--port", help="serial port, e.g. COM7 or /dev/cu.usbserial-110 (default: find it automatically)")
+    return parser
+
+
 def connect_serial():
     """Open the USB connection to the Arduino (shared by the terminal app and the web app)."""
     import serial                       # arduino data
-    from serial.tools import list_ports
+    port = find_arduino_port() if PORT in ("auto", "") else PORT
     try:
-        ser = serial.Serial(PORT, BAUD, timeout=1) #이 줄이 실제로 Arduino와 연결하는 부분이야, Arduino에게 데이터를 기다릴 때 최대 1초까지만 기다려
-    except serial.SerialException:
+        ser = serial.Serial(port, BAUD, timeout=1) #이 줄이 실제로 Arduino와 연결하는 부분이야, Arduino에게 데이터를 기다릴 때 최대 1초까지만 기다려
+    except serial.SerialException as e:
+        from serial.tools import list_ports
         ports = [p.device for p in list_ports.comports()]
-        raise RuntimeError(f"Could not open PORT = {PORT!r}. Ports found on this computer: {ports}. "
-                           "Copy the Arduino's port into PORT at the top of grip_test.py.")
+        raise RuntimeError(f"Could not open {port!r} ({e}). Ports found on this computer: {ports}. "
+                           "Close the Arduino Serial Monitor, or choose the port with --port.")
     time.sleep(2.5)                     # the Arduino restarts when we connect, then tares itself
     return ser
 
@@ -193,7 +244,7 @@ def run_protocol(ser, stamp, user):
             trials.append({"hand": hand, "trial": trial, "test": "max",
                            "readings": readings, "smooth": smooth,
                            "metrics": m, "quality": q["label"]})
-            make_report(stamp, user, trials, SESSIONS_DIR, USE_FAKE)
+            make_report(stamp, user, trials, SESSIONS_DIR, USE_FAKE, calibration=calibration_note(USE_FAKE))
             rest(REST_SECONDS)
 
     print(f"\n--- FATIGUE TEST ({dominant.upper()} hand) ---")
@@ -208,7 +259,8 @@ def run_protocol(ser, stamp, user):
     fatigue = {"hand": dominant, "trial": 1, "test": "fatigue",
                "readings": readings, "smooth": smooth, "metrics": metrics.trial_metrics(smooth)}
     fatigue["metrics"]["fatigue_index_pct"] = metrics.fatigue_index_pct(smooth)
-    make_report(stamp, user, trials, SESSIONS_DIR, USE_FAKE, fatigue=fatigue)
+    make_report(stamp, user, trials, SESSIONS_DIR, USE_FAKE, fatigue=fatigue,
+                calibration=calibration_note(USE_FAKE))
     print("Relax. Fatigue test done.")    
 
     plt.ioff()
@@ -304,9 +356,13 @@ def main():
 
     plot_on_centiles(result, save_path=SESSIONS_DIR / f"session_{stamp}_centiles.png", show=False)
     make_report(stamp, user, trials, SESSIONS_DIR, USE_FAKE,
-                fatigue=fatigue, summary=summary, result=result)
+                fatigue=fatigue, summary=summary, result=result,
+                calibration=calibration_note(USE_FAKE))
 
 if __name__ == "__main__":
+    args = device_args(argparse.ArgumentParser(description="Grip strength test in the terminal")).parse_args()
+    if args.device:
+        use_device(args.port)
     main()
 
 
