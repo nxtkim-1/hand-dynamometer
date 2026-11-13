@@ -25,3 +25,6 @@ desktop.ini
 .vscode/
 
 .pytest_cache/
+
+# personal Claude Code instructions (each person keeps their own)
+CLAUDE.local.md
