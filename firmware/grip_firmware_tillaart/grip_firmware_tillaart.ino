@@ -56,6 +56,7 @@ void setup() {
   scale.begin(PIN_DOUT, PIN_SCK);    // data pin first, then clock pin
   doTare();
   Serial.println("# hand_dynamometer_v1");
+  Serial.println("# calibration=estimated (datasheet, about +/-10 %)");   // change to measured after G3
   Serial.println("t_ms,raw,net,force_kg");
 }
 

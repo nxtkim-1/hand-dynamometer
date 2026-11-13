@@ -13,30 +13,33 @@ tick tasks off as they are done; this file is loaded into every Claude Code sess
 | G3 calibration with known masses | **Not done** | firmware uses the datasheet estimate 42952 counts/kg |
 | G4 closed-book quiz (load path, seam rule, calibration) | Not done | |
 | PR #3 hardware docs + Tillaart firmware | Merged | |
-| PR #4 GripCheck reads the real device (Web Serial, `--device`, calibration banner) | **Open, waiting for Samuel** | 50 tests pass; browser flow checked with a simulated device only |
+| PR #4 GripCheck reads the real device (Web Serial, `--device`, calibration banner, device check, Windows launchers) | Merged 2026-11-12 | 56 tests pass; checked with simulated devices only |
 | Real Nano + GripCheck end to end | Not done | |
 | HX711 at 80 Hz (RATE pin) | Not done | needs a photo of the board |
 
 ## To do, in order
 
-### 1. Merge PR #4 (Samuel)
-Samuel reviews github.com/nxtkim-1/hand-dynamometer/pull/4 and merges with **Create a merge commit**.
-Then pull `main` (GitHub Desktop: Fetch origin → Pull).
+### 1. Get the latest code
+PR #4 is merged (Thomas approved merging before Samuel's review; Samuel should still read it).
+Pull `main` (GitHub Desktop: Fetch origin → Pull).
 
 ### 2. First real test with GripCheck
 1. Upload `firmware/grip_firmware_tillaart/grip_firmware_tillaart.ino` again (it now prints a calibration comment line).
 2. Close the Arduino Serial Monitor.
-3. Run **either** `python webapp.py --device` **or** `python webapp.py`, then press **Connect device** in Chrome or Edge.
-4. Do the whole test: zero, 6 squeezes, 30 s hold, then the report.
+3. Double-click `check_device.bat` (or `python software/check_device.py`). Fix any FAIL it prints and run it again until it says READY.
+   Expected WARNs for now: calibration is an estimate, and the 10 Hz sample rate.
+4. Double-click `start_gripcheck.bat` (or `python webapp.py --device`). Do the whole test: zero, 6 squeezes, 30 s hold, then the report.
 5. Expected: "Device connected" badge, the estimated-calibration banner, about 10 samples/s, RFD n/a.
 6. Save the report as PDF and add a screenshot to `docs/proofs/`. Write a dated build-log entry with peak values.
 Done when: a real report exists and is logged. Also add the missing G2 numbers.
 
-### 3. Live demo on Render
-- Merging to `main` redeploys if auto-deploy is on (the default for `render.yaml` Blueprints). Otherwise, in Render:
-  **Manual Deploy → Deploy latest commit**.
-- Open the live link in Chrome, press **Connect device**, and run one trial with the real device.
-- Put the live link in the README.
+### 3. Public site on Render (optional, not deployed yet)
+Not needed for the device to work: GripCheck runs locally. Deploying gives a link for the resume and lets
+anyone with the device use it from Chrome without installing Python.
+- render.com → sign in with GitHub → **New → Blueprint** → choose `nxtkim-1/hand-dynamometer`. Render reads
+  `render.yaml` (free plan, simulated data unless a visitor presses Connect device).
+- After that, every merge to `main` redeploys automatically.
+- Open the link in Chrome, press **Connect device**, run one trial, and put the link in the README.
 
 ### 4. G3 calibration (one session, about 2 h, two people is easier)
 - Procedure: `docs/04_calibration.md`. Load the cell exactly the way a squeeze does, and do the direction check first.

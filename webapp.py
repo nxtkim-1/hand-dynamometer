@@ -13,12 +13,20 @@ How the live graph works (Server-Sent Events):
   every new force sample is sent down that connection as one small message,
   and the page redraws the graph each time a message arrives.
 
+Two ways to use the real dynamometer:
+  python webapp.py --device      the server reads the Arduino over USB (port found automatically)
+  Web Serial (Chrome / Edge)     the visitor's browser reads the Arduino and uploads each trial to
+                                 /api/<session id>/step/<n>/upload, so the public site works with a
+                                 real device too. Both paths use the same analysis code below.
+
 Several visitors at once:
   each visitor gets a random session id when they press Continue, and every
   request carries it, so two people's tests are stored separately.
 """
 
+import argparse
 import json
+import math
 import os
 import secrets
 import threading
@@ -51,6 +59,7 @@ if DEMO:
     grip_test.USE_FAKE = True
     grip_test.REST_SECONDS = 3
 
+MAX_UPLOAD_LINES = 20000           # one trial from the browser: 32 s at 80 Hz is about 2600 lines
 MAX_SESSIONS = 100                 # forget the oldest unfinished tests beyond this (keeps memory small)
 sessions = {}                      # session id -> that visitor's test
 plot_lock = threading.Lock()       # matplotlib is not safe when two threads draw at the same time
@@ -142,6 +151,60 @@ def no_session():
     return jsonify({"error": "This test has expired. Please start again."}), 404
 
 
+def analyse(state, index, readings, skipped):
+    """Check, filter and score one recorded trial. Returns ("done", results) or ("failed", message).
+    Shared by the live stream (server reads the device or the simulator) and browser uploads."""
+    step = state["plan"][index]
+    if not readings:
+        hint = f" First non-data line: {skipped[0]!r}" if skipped else ""
+        return "failed", {"message": "No data received - check the USB cable." + hint}
+
+    notes = []
+    rate = filters.estimate_rate_hz(readings)
+    if rate < grip_test.MIN_RATE_HZ:
+        notes.append(f"Data arrived at about {rate:.0f} samples/s; RFD needs at least "
+                     f"{grip_test.MIN_RATE_HZ} and is reported as n/a.")
+    try:
+        grip_test.check_recording(readings, warned=True)   # calibration check (rate shown above)
+    except RuntimeError as e:
+        return "failed", {"message": str(e)}
+
+    smooth = filters.filter_readings(readings)
+    m = metrics.trial_metrics(smooth)
+    result = {"hand": step["hand"], "trial": step["trial"], "test": step["test"],
+              "readings": readings, "smooth": smooth, "metrics": m}
+    if step["test"] == "max":
+        result["quality"] = quality.check_trial(smooth)["label"]
+    else:
+        m["fatigue_index_pct"] = metrics.fatigue_index_pct(smooth)
+    state["results"][index] = result      # repeating a trial simply replaces it
+
+    return "done", {
+        "peak_kg": fmt(m["peak_kg"]),
+        "time_to_peak_ms": m["time_to_peak_ms"],
+        "rfd_n_per_s": fmt(m["rfd_n_per_s"], 0),
+        "fatigue_index_pct": fmt(m.get("fatigue_index_pct")),
+        "quality": result.get("quality"),
+        "notes": notes,
+    }
+
+
+def lines_to_readings(lines):
+    """Parse firmware or simulator lines into readings (time restarts at 0); also return skipped lines."""
+    readings, skipped, first_ms = [], [], None
+    for line in lines:
+        parsed = grip_test.parse_line(line)
+        if parsed is None or not all(math.isfinite(v) for v in parsed):
+            if line:
+                skipped.append(line)
+            continue
+        time_ms, force_kg = parsed
+        if first_ms is None:
+            first_ms = time_ms
+        readings.append({"time_ms": time_ms - first_ms, "force_kg": force_kg})
+    return readings, skipped
+
+
 # ---------- pages ---------------------------------------------------------
 
 @app.get("/")
@@ -180,6 +243,10 @@ def config():
     return jsonify({
         "use_fake": grip_test.USE_FAKE,
         "demo": DEMO,
+        "browser_device": True,                    # the page may offer Web Serial (Chrome / Edge)
+        "baud": grip_test.BAUD,
+        "calibration": grip_test.CALIBRATION,
+        "calibration_note": grip_test.CALIBRATION_NOTE,
         "rest_seconds": grip_test.REST_SECONDS,
         "prompt_posture": grip_test.PROMPT_POSTURE,
         "prompt_go": grip_test.PROMPT_GO,
@@ -194,8 +261,10 @@ def start():
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
 
+    body = request.get_json(force=True) or {}
+    browser = body.get("source") == "browser"      # the visitor's browser reads the device (Web Serial)
     ser = None
-    if not grip_test.USE_FAKE:
+    if not grip_test.USE_FAKE and not browser:
         # one device: a new test on this computer replaces any earlier one
         for old in sessions.values():
             close_serial(old)
@@ -212,9 +281,13 @@ def start():
     stamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     if DEMO:
         stamp += "_" + sid[:8]                       # unique file names and private report links
+    fake = grip_test.USE_FAKE and not browser
+    rest = grip_test.REST_SECONDS if fake or not browser else 60      # real squeezes need real rests
     sessions[sid] = {"stamp": stamp, "user": user, "plan": build_plan(user["dominant"]),
-                     "results": {}, "ser": ser}
-    return jsonify({"session_id": sid, "plan": sessions[sid]["plan"], "needs_tare": ser is not None})
+                     "results": {}, "ser": ser, "browser": browser, "fake": fake}
+    return jsonify({"session_id": sid, "plan": sessions[sid]["plan"],
+                    "needs_tare": ser is not None or browser, "source": "browser" if browser else "server",
+                    "rest_seconds": rest, "calibration_note": grip_test.calibration_note(fake)})
 
 
 @app.post("/api/<sid>/tare")
@@ -235,6 +308,8 @@ def stream_step(sid, index):
         return no_session()
     if not 0 <= index < len(state["plan"]):
         return jsonify({"error": "No such trial."}), 400
+    if state.get("browser"):
+        return jsonify({"error": "This test records in the browser; it uploads each trial instead."}), 400
     step = state["plan"][index]
 
     def events():
@@ -252,43 +327,31 @@ def stream_step(sid, index):
             readings.append(point)
             yield sse("point", {"t": point["time_ms"], "f": round(force_kg, 2)})
 
-        if not readings:
-            hint = f" First non-data line: {skipped[0]!r}" if skipped else ""
-            yield sse("failed", {"message": "No data received - check the USB cable and PORT." + hint})
-            return
-
-        notes = []
-        rate = filters.estimate_rate_hz(readings)
-        if rate < grip_test.MIN_RATE_HZ:
-            notes.append(f"Data arrived at about {rate:.0f} samples/s; RFD needs at least "
-                         f"{grip_test.MIN_RATE_HZ} and is reported as n/a.")
-        try:
-            grip_test.check_recording(readings, warned=True)   # calibration check (rate shown above)
-        except RuntimeError as e:
-            yield sse("failed", {"message": str(e)})
-            return
-
-        smooth = filters.filter_readings(readings)
-        m = metrics.trial_metrics(smooth)
-        result = {"hand": step["hand"], "trial": step["trial"], "test": step["test"],
-                  "readings": readings, "smooth": smooth, "metrics": m}
-        if step["test"] == "max":
-            result["quality"] = quality.check_trial(smooth)["label"]
-        else:
-            m["fatigue_index_pct"] = metrics.fatigue_index_pct(smooth)
-        state["results"][index] = result      # repeating a trial simply replaces it
-
-        yield sse("done", {
-            "peak_kg": fmt(m["peak_kg"]),
-            "time_to_peak_ms": m["time_to_peak_ms"],
-            "rfd_n_per_s": fmt(m["rfd_n_per_s"], 0),
-            "fatigue_index_pct": fmt(m.get("fatigue_index_pct")),
-            "quality": result.get("quality"),
-            "notes": notes,
-        })
+        yield sse(*analyse(state, index, readings, skipped))
 
     return Response(events(), mimetype="text/event-stream",
                     headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+@app.post("/api/<sid>/step/<int:index>/upload")
+def upload_step(sid, index):
+    """One trial recorded by the visitor's browser from the real device (Web Serial)."""
+    state = get_session(sid)
+    if state is None:
+        return no_session()
+    if not state.get("browser"):
+        return jsonify({"error": "This test was not started with a browser-connected device."}), 400
+    if not 0 <= index < len(state["plan"]):
+        return jsonify({"error": "No such trial."}), 400
+    lines = (request.get_json(force=True, silent=True) or {}).get("lines")
+    if (not isinstance(lines, list) or len(lines) > MAX_UPLOAD_LINES
+            or not all(isinstance(x, str) and len(x) <= 120 for x in lines)):
+        return jsonify({"error": "The recording could not be read."}), 400
+    readings, skipped = lines_to_readings(lines)
+    event, payload = analyse(state, index, readings, skipped)
+    if event == "failed":
+        return jsonify({"error": payload["message"]}), 400
+    return jsonify(payload)
 
 
 @app.post("/api/<sid>/finish")
@@ -311,14 +374,17 @@ def finish(sid):
     result = assess(summary["overall_peak_kg"], user["age"], user["sex"])
     with plot_lock:
         plot_on_centiles(result, save_path=folder / f"session_{stamp}_centiles.png", show=False)
-        make_report(stamp, user, trials, folder, grip_test.USE_FAKE,
+        make_report(stamp, user, trials, folder, state["fake"],
                     fatigue=fatigue, summary=summary, result=result,
-                    open_browser=False, home_url="/")
+                    open_browser=False, home_url="/", calibration=grip_test.calibration_note(state["fake"]))
     sessions.pop(sid, None)                                      # finished: free the memory
     return jsonify({"report_url": f"/report/{stamp}"})
 
 
 if __name__ == "__main__":
+    args = grip_test.device_args(argparse.ArgumentParser(description="GripCheck in the browser")).parse_args()
+    if args.device:
+        grip_test.use_device(args.port)
     url = f"http://localhost:{PORT_NUMBER}"
     print(f"GripCheck is running at {url}  (press Ctrl+C here to stop)")
     threading.Timer(1.0, lambda: webbrowser.open(url)).start()

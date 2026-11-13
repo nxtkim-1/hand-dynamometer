@@ -99,13 +99,26 @@ python grip_test.py
 Enter age, sex, and dominant hand when prompted, then press Enter before each trial. Results are printed to the terminal and saved to the `sessions/` folder.
 
 ### Run with the Arduino
-1. Set the HX711 to **80 samples per second** (RATE pin high). At the default 10 samples per second, rate of force development cannot be estimated and is reported as n/a.
-2. Upload `firmware/grip_firmware/grip_firmware.ino`, run `software/calibrate.py`, and paste the printed value into `COUNTS_PER_KG`.
-   - If you use Rob Tillaart's HX711 library instead of Bogdan Necula's, upload `firmware/grip_firmware_tillaart/grip_firmware_tillaart.ino` (same serial format and `T` tare command).
-   - **Current status (2026-11-12):** that file ships with a *provisional* `COUNTS_PER_KG = 42952`, an estimate from the load-cell datasheet (about ±5–10 %), **not a measured calibration**. Forces shown by the app are datasheet-scaled until the known-mass calibration (`docs/04_calibration.md`) has been run and the fitted value pasted in. Before calibration the app stops with a message instead of reporting impossible forces.
-3. Find the serial port: `python -m serial.tools.list_ports`
-4. In `grip_test.py`, set `USE_FAKE = False` and set `PORT` to the port found in step 3. If the port is wrong, the app lists the ports it can see.
-5. Run `python grip_test.py` and release the handle when asked to zero the sensor.
+
+No code needs editing. Plug the dynamometer in by USB and close the Arduino IDE's Serial Monitor (only one program can use the port).
+
+**Windows, double-click:** `check_device.bat` runs a one-minute check (hands off, squeeze, let go) and prints PASS/WARN/FAIL with fixes. `start_gripcheck.bat` then opens GripCheck with the device. The first run installs the Python packages into `.venv` (Python 3.12 from python.org must be installed, with "Add python.exe to PATH" ticked).
+
+**From a terminal (any OS):**
+```bash
+python software/check_device.py      # health check
+python webapp.py --device            # web app, port found automatically
+python grip_test.py --device         # terminal version
+python webapp.py --device --port COM7   # only if several serial devices are plugged in
+```
+
+**In the browser (Chrome or Edge):** run `python webapp.py`, or open a deployed GripCheck site, and press **Connect device** on the first screen. The browser reads the device through Web Serial and the server analyses each trial exactly as in the other routes. On a deployed site, nothing has to be installed on the visitor's computer.
+
+**Firmware:** upload `firmware/grip_firmware_tillaart/grip_firmware_tillaart.ino` (Rob Tillaart's HX711 library) or `firmware/grip_firmware/grip_firmware.ino` (Bogdan Necula's). Both print `t_ms,raw,net,force_kg` at 115200 baud and re-zero on `T`.
+
+**Calibration status (2026-11-12): estimated.** `COUNTS_PER_KG = 42952` comes from the load-cell datasheet (about ±10 %), not from known masses. The app and every report say so in a banner. After the known-mass calibration (`docs/04_calibration.md`), paste the fitted value into the firmware and set `CALIBRATION = "measured"` in `grip_test.py` (or `GRIPCHECK_CALIBRATION=measured`); the banner then disappears.
+
+**Sample rate:** the HX711 runs at 10 samples/s until its RATE pin is tied high (80 samples/s). At 10 Hz everything works except rate of force development, which is reported as n/a.
 
 ### Run the tests
 ```bash
