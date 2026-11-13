@@ -23,9 +23,9 @@ Current status and the to-do list: @docs/HANDOFF.md
 ## Commands
 ```bash
 pip install -r requirements.txt
-python -m pytest -q                      # must stay green (50 tests)
+python -m pytest -q                      # must stay green (34 tests; 50 after PR #4)
 python webapp.py                         # simulated data, http://localhost:8000
-python webapp.py --device                # real device, port found automatically (--port COM7 to force)
+python webapp.py --device                # real device, after PR #4 (--port COM7 to force)
 GRIPCHECK_DEMO=1 python webapp.py        # behave like the public Render demo
 python software/calibrate.py data/calibration_points.csv
 ```
