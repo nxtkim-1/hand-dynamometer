@@ -160,7 +160,7 @@ def plot_curves(trials, fatigue, save_path):
 
 def make_report(stamp, user, trials, folder, is_fake=True,
                 fatigue=None, summary=None, result=None, total_trials=7,
-                open_browser=True, home_url=None):
+                open_browser=True, home_url=None, calibration=None):
     """Write session_<stamp>_report.html. Opens the browser the first time (terminal app only)."""
     live = summary is None
     report_path = folder / f"session_{stamp}_report.html"
@@ -184,6 +184,9 @@ def make_report(stamp, user, trials, folder, is_fake=True,
                    f'Download PDF</button>{home}</div>')
     if is_fake:
         banners += '<p class="banner fake">FAKE DATA - generated for testing, not a real measurement.</p>'
+    if calibration:
+        # real device, but the scale factor is not measured yet (see grip_test.CALIBRATION)
+        banners += f'<p class="banner caution">Estimated calibration. {html.escape(calibration)}</p>'
     if live:
         banners += f'<p class="banner live">Test in progress: {done} of {total_trials} recordings done</p>'
 

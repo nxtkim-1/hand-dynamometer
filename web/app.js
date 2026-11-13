@@ -1,6 +1,7 @@
 // GripCheck - browser side.
-// The server (webapp.py) does all measuring and maths; this file only shows screens,
-// runs the 3-2-1 countdown, and draws the live graph from the points the server sends.
+// The server (webapp.py) does all the maths; this file shows screens, runs the 3-2-1 countdown
+// and draws the live graph. The points come either from the server (simulator, or a device
+// plugged into the server) or, with Web Serial, straight from a device plugged into THIS computer.
 
 const $ = (id) => document.getElementById(id);
 // colours and the font come from web/tokens.css, so the graph always matches the page
@@ -19,6 +20,8 @@ const app = {
   flags: {},         // steps whose quality was not "good"
   phase: "idle",     // idle | countdown | recording | resting | done
   restTimer: null,
+  device: null,      // Web Serial connection: { port, onLine } (Chrome / Edge only)
+  restSeconds: null, // rest length for this test, given by the server
 };
 
 // ---------- small helpers ----------
@@ -191,6 +194,8 @@ async function runTrial() {
   $("go-text").hidden = false;
   app.phase = "recording";
 
+  if (app.source === "browser") return recordFromDevice(step);
+
   const stream = new EventSource(`/api/${app.sid}/step/${app.index}/stream`);
   let peak = 0;
   stream.addEventListener("point", (e) => {
@@ -259,7 +264,7 @@ function failTrial(message) {
 function startRest(flagged) {
   app.phase = "resting";
   renderProgress();
-  let left = app.config.rest_seconds;
+  let left = app.restSeconds ?? app.config.rest_seconds;
   const nextStep = app.plan[app.index + 1];
   const nextLabel = nextStep.test === "fatigue" ? "Start fatigue test" : `Next: ${nextStep.hand} hand`;
   const tick = () => {
@@ -308,6 +313,114 @@ document.addEventListener("keydown", (e) => {
   if (!$("screen-trial").hidden && !b.disabled && !b.hidden) b.click();
 });
 
+
+// ---------- device in this browser (Web Serial) ----------
+// The firmware prints "t_ms,raw,net,force_kg" lines at 115200 baud and re-zeroes on "T".
+
+function parseLine(line) {           // same rule as parse_line() in grip_test.py
+  const parts = line.split(",");
+  if (parts.length < 2 || !/^-?\d+$/.test(parts[0].trim())) return null;
+  const t = parseInt(parts[0], 10), f = parseFloat(parts[parts.length - 1]);
+  return Number.isFinite(t) && Number.isFinite(f) ? { t, f } : null;
+}
+
+async function readLines(port) {
+  const decoder = new TextDecoderStream();
+  port.readable.pipeTo(decoder.writable).catch(() => {});
+  const reader = decoder.readable.getReader();
+  let buffer = "";
+  try {
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += value;
+      let cut;
+      while ((cut = buffer.indexOf("\n")) >= 0) {
+        const line = buffer.slice(0, cut).trim();
+        buffer = buffer.slice(cut + 1);
+        if (app.device && app.device.onLine) app.device.onLine(line);
+      }
+    }
+  } catch (err) { /* unplugged: handled by the disconnect event */ }
+}
+
+async function sendToDevice(text) {
+  const writer = app.device.port.writable.getWriter();
+  try { await writer.write(new TextEncoder().encode(text)); } finally { writer.releaseLock(); }
+}
+
+function deviceLost() {
+  app.device = null;
+  $("device-status").textContent = "Device disconnected.";
+  $("btn-device").hidden = false;
+  setBadge();
+  if (app.phase === "recording" || app.phase === "countdown") failTrial("The device was unplugged.");
+}
+
+async function connectDevice() {
+  const status = $("device-status");
+  try {
+    const port = await navigator.serial.requestPort();
+    await port.open({ baudRate: app.config.baud });
+    app.device = { port, onLine: null };
+    readLines(port);
+    $("btn-device").hidden = true;
+    status.textContent = "Starting the device...";
+    await sleep(2500);                           // opening the port restarts the Nano
+    status.textContent = "Device connected. Your squeezes will be measured, not simulated.";
+    setBadge();
+  } catch (err) {
+    if (err.name !== "NotFoundError") status.textContent = `Could not connect: ${err.message}`;
+  }
+}
+
+async function tareDevice() {
+  app.device.onLine = null;
+  await sendToDevice("T");
+  await sleep(2500);                             // the firmware averages 20 readings
+}
+
+// Record one trial from the device for step.seconds, drawing it live, then upload it.
+async function recordFromDevice(step) {
+  const lines = [];
+  let first = null, peak = 0;
+  app.device.onLine = (line) => {
+    lines.push(line);
+    const p = parseLine(line);
+    if (!p) return;
+    if (first === null) first = p.t;
+    const point = { t: p.t - first, f: p.f };
+    app.points.push(point);
+    peak = Math.max(peak, point.f);
+    $("live-force").textContent = point.f.toFixed(1);
+    $("live-peak").textContent = peak.toFixed(1);
+    requestDraw();
+  };
+  const started = performance.now();
+  while (app.device && performance.now() - started < step.seconds * 1000) {
+    $("live-left").textContent = Math.max(0, step.seconds - (performance.now() - started) / 1000).toFixed(0);
+    await sleep(100);
+  }
+  if (!app.device) return;                       // unplugged: deviceLost() already reported it
+  app.device.onLine = null;
+  try { finishTrial(await api(`/api/${app.sid}/step/${app.index}/upload`, { lines })); }
+  catch (err) { failTrial(err.message); }
+}
+
+function setBadge() {
+  const badge = $("mode-badge");
+  const real = app.device || !app.config.use_fake;
+  badge.hidden = false;
+  badge.textContent = app.device ? "Device connected" : app.config.demo ? "Online demo"
+    : app.config.use_fake ? "Simulated data" : "Device connected";
+  badge.classList.toggle("device", Boolean(real));
+  const cal = $("cal-note");
+  cal.hidden = !(real && app.config.calibration !== "measured");
+  cal.innerHTML = `<b>Estimated calibration.</b> ${app.config.calibration_note}`;
+}
+
+$("btn-device").addEventListener("click", connectDevice);
+
 // ---------- start, details form, zeroing, finish ----------
 
 $("btn-welcome").addEventListener("click", () => { show("screen-form"); document.querySelector("[name=age]").focus(); });
@@ -319,11 +432,13 @@ $("user-form").addEventListener("submit", async (e) => {
   const form = new FormData(e.target);
   const body = Object.fromEntries(form.entries());
   body.injury = form.has("injury");
+  if (app.device) body.source = "browser";
   $("form-error").hidden = true;
   $("btn-form").disabled = true;
   try {
     const data = await api("/api/start", body);
     app.sid = data.session_id; app.plan = data.plan; app.index = 0; app.traces = {}; app.flags = {};
+    app.source = data.source; app.restSeconds = data.rest_seconds;
     if (data.needs_tare) { show("screen-tare"); $("btn-tare").focus(); }
     else showTrial();
   } catch (err) {
@@ -336,7 +451,15 @@ $("user-form").addEventListener("submit", async (e) => {
 $("btn-tare").addEventListener("click", async () => {
   const b = $("btn-tare");
   b.disabled = true; b.textContent = "Zeroing... do not touch";
-  try { await api(`/api/${app.sid}/tare`, {}); showTrial(); }
+  try {
+    if (app.source === "browser") {
+      if (!app.device) throw new Error("The device is not connected. Reload the page and connect it again.");
+      await tareDevice();
+    } else {
+      await api(`/api/${app.sid}/tare`, {});
+    }
+    showTrial();
+  }
   catch (err) { $("tare-error").textContent = err.message; $("tare-error").hidden = false; }
   finally { b.disabled = false; b.textContent = "Zero now"; }
 });
@@ -354,9 +477,16 @@ async function finish() {
 
 (async function init() {
   app.config = await api("/api/config");
-  const badge = $("mode-badge");
-  badge.hidden = false;
-  badge.textContent = app.config.demo ? "Online demo" : app.config.use_fake ? "Simulated data" : "Device connected";
   if (app.config.demo) $("demo-note").hidden = false;
-  if (!app.config.use_fake) badge.classList.add("device");
+  setBadge();
+  // offer a device in this browser only when the server is not already reading one
+  if (app.config.browser_device && app.config.use_fake) {
+    $("device-box").hidden = false;
+    if ("serial" in navigator) {
+      navigator.serial.addEventListener("disconnect", (e) => { if (app.device && e.target === app.device.port) deviceLost(); });
+    } else {
+      $("btn-device").hidden = true;
+      $("device-status").textContent = "To use the device, open this page in Chrome or Edge on a computer.";
+    }
+  }
 })();

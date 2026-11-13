@@ -28,9 +28,16 @@
     </ol>
     <p class="muted small">Educational project. This is not a medical device and does not give a diagnosis.</p>
     <p id="demo-note" class="demo-note small" hidden>
-      <b>Online demo.</b> No device is connected here, so each squeeze is simulated from a realistic
-      force curve. Please do not enter real names or personal information.
+      <b>Online demo.</b> Without a device, each squeeze is simulated from a realistic force curve.
+      Please do not enter real names or personal information.
     </p>
+    <div id="device-box" class="demo-note device-box small" hidden>
+      <p><b>Have the GripCheck dynamometer?</b> Plug it in by USB and connect it here.
+        Works in Chrome or Edge on a computer.</p>
+      <button class="btn secondary" id="btn-device" type="button">Connect device</button>
+      <p id="device-status" class="device-status" aria-live="polite"></p>
+    </div>
+    <p id="cal-note" class="demo-note small" hidden></p>
     <button class="btn primary" id="btn-welcome">Begin</button>
   </section>
 
