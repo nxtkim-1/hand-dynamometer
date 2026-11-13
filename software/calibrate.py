@@ -7,6 +7,8 @@ Usage:
 
 Input CSV columns:
     mass_kg      actual (verified) mass hung from the handle; 0 for unloaded
+                 (or mass_lb instead: pounds are converted, 1 lb = 0.45359237 kg;
+                  see data/calibration_points_template_lb.csv)
     net_counts   mean 'net' from logger.py over the last 2 s at that mass
     direction    'up' while adding mass, 'down' while removing
     run          1, 2, 3 ... one number per complete up/down sequence
@@ -41,7 +43,9 @@ rows = list(csv.DictReader(open(fname, newline="")))
 if len(rows) < 4:
     sys.exit("Need at least 4 calibration points.")
 
-m = np.array([float(r["mass_kg"]) for r in rows])
+LB_TO_KG = 0.45359237
+m = np.array([float(r["mass_kg"]) if (r.get("mass_kg") or "").strip() else float(r["mass_lb"]) * LB_TO_KG
+              for r in rows])
 c = np.array([float(r["net_counts"]) for r in rows])
 d = np.array([r["direction"].strip().lower() for r in rows])
 run = np.array([int(r["run"]) for r in rows])
