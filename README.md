@@ -102,14 +102,17 @@ Enter age, sex, and dominant hand when prompted, then press Enter before each tr
 
 No code needs editing. Plug the dynamometer in by USB and close the Arduino IDE's Serial Monitor (only one program can use the port).
 
-**Option A, in the browser (Chrome or Edge on a computer):** open GripCheck (locally, or the public demo link), press **Connect device** on the first screen and choose the Arduino. The browser reads the device through Web Serial and the server analyses each trial exactly as before. Nothing has to be installed on the computer.
+**Windows, double-click:** `check_device.bat` runs a one-minute check (hands off, squeeze, let go) and prints PASS/WARN/FAIL with fixes. `start_gripcheck.bat` then opens GripCheck with the device. The first run installs the Python packages into `.venv` (Python 3.12 from python.org must be installed, with "Add python.exe to PATH" ticked).
 
-**Option B, from Python:**
+**From a terminal (any OS):**
 ```bash
+python software/check_device.py      # health check
 python webapp.py --device            # web app, port found automatically
 python grip_test.py --device         # terminal version
 python webapp.py --device --port COM7   # only if several serial devices are plugged in
 ```
+
+**In the browser (Chrome or Edge):** run `python webapp.py`, or open a deployed GripCheck site, and press **Connect device** on the first screen. The browser reads the device through Web Serial and the server analyses each trial exactly as in the other routes. On a deployed site, nothing has to be installed on the visitor's computer.
 
 **Firmware:** upload `firmware/grip_firmware_tillaart/grip_firmware_tillaart.ino` (Rob Tillaart's HX711 library) or `firmware/grip_firmware/grip_firmware.ino` (Bogdan Necula's). Both print `t_ms,raw,net,force_kg` at 115200 baud and re-zero on `T`.
 
