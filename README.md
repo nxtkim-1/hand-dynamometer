@@ -100,7 +100,9 @@ Enter age, sex, and dominant hand when prompted, then press Enter before each tr
 
 ### Run with the Arduino
 1. Set the HX711 to **80 samples per second** (RATE pin high). At the default 10 samples per second, rate of force development cannot be estimated and is reported as n/a.
-2. Upload `firmware/grip_firmware/grip_firmware.ino`, run `software/calibrate.py`, and paste the printed value into `COUNTS_PER_KG`. Before calibration the app stops with a message instead of reporting impossible forces.
+2. Upload `firmware/grip_firmware/grip_firmware.ino`, run `software/calibrate.py`, and paste the printed value into `COUNTS_PER_KG`.
+   - If you use Rob Tillaart's HX711 library instead of Bogdan Necula's, upload `firmware/grip_firmware_tillaart/grip_firmware_tillaart.ino` (same serial format and `T` tare command).
+   - **Current status (2026-11-12):** that file ships with a *provisional* `COUNTS_PER_KG = 42952`, an estimate from the load-cell datasheet (about ±5–10 %), **not a measured calibration**. Forces shown by the app are datasheet-scaled until the known-mass calibration (`docs/04_calibration.md`) has been run and the fitted value pasted in. Before calibration the app stops with a message instead of reporting impossible forces.
 3. Find the serial port: `python -m serial.tools.list_ports`
 4. In `grip_test.py`, set `USE_FAKE = False` and set `PORT` to the port found in step 3. If the port is wrong, the app lists the ports it can see.
 5. Run `python grip_test.py` and release the handle when asked to zero the sensor.
