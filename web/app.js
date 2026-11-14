@@ -76,16 +76,19 @@ function drawChart() {
 
   const pad = { l: 48, r: 16, t: 16, b: 34 };
   const peak = Math.max(0, ...app.points.map((p) => p.f));
+  const low = Math.min(0, ...app.points.map((p) => p.f));
   const yMax = Math.max(40, Math.ceil((peak * 1.15) / 10) * 10);
+  // negative force is drawn below zero (not clipped), so a flipped SIGN is visible instead of a flat line
+  const yMin = low < -1 ? Math.floor((low * 1.15) / 10) * 10 : 0;
   const xMax = step.seconds;
   const x = (s) => pad.l + (s / xMax) * (w - pad.l - pad.r);
-  const y = (kg) => h - pad.b - (Math.max(0, kg) / yMax) * (h - pad.t - pad.b);
+  const y = (kg) => h - pad.b - ((kg - yMin) / (yMax - yMin)) * (h - pad.t - pad.b);
 
   // grid and labels
   ctx.font = `12px ${INK.font}`;
   ctx.fillStyle = INK.muted; ctx.strokeStyle = INK.rule; ctx.lineWidth = 1;
-  const yStep = yMax > 100 ? 20 : 10;
-  for (let kg = 0; kg <= yMax; kg += yStep) {
+  const yStep = yMax - yMin > 100 ? 20 : 10;
+  for (let kg = yMin; kg <= yMax; kg += yStep) {
     ctx.beginPath(); ctx.moveTo(pad.l, y(kg)); ctx.lineTo(w - pad.r, y(kg)); ctx.stroke();
     ctx.textAlign = "right"; ctx.fillText(kg, pad.l - 8, y(kg) + 4);
   }
@@ -458,11 +461,64 @@ $("btn-tare").addEventListener("click", async () => {
     } else {
       await api(`/api/${app.sid}/tare`, {});
     }
-    showTrial();
+    showCheck();
   }
   catch (err) { $("tare-error").textContent = err.message; $("tare-error").hidden = false; }
   finally { b.disabled = false; b.textContent = "Zero now"; }
 });
+
+// ---------- sensor check (after zeroing, before the first trial) ----------
+
+function showCheck() {
+  $("btn-tare").hidden = true;
+  $("check-box").hidden = false;
+  $("check-result").hidden = true;
+  $("btn-check").focus();
+}
+
+function showCheckLive(f, peak) {
+  $("check-force").textContent = f.toFixed(1);
+  $("check-peak").textContent = peak.toFixed(1);
+}
+
+function showVerdict(ok, message) {
+  const r = $("check-result");
+  r.textContent = message;
+  r.className = ok ? "notice ok" : "notice";
+  r.hidden = false;
+  $("btn-check").textContent = "Check again";
+  $("btn-check").disabled = false;
+  $("btn-check-skip").textContent = ok ? "Start the test" : "Start anyway";
+  (ok ? $("btn-check-skip") : $("btn-check")).focus();
+}
+
+async function runCheck() {
+  const b = $("btn-check");
+  b.disabled = true; b.textContent = "Squeeze once, then let go...";
+  $("check-result").hidden = true;
+  let peak = 0;
+  if (app.source === "browser") {
+    if (!app.device) return showVerdict(false, "The device is not connected. Reload the page and connect it again.");
+    const lines = [];
+    app.device.onLine = (line) => {
+      lines.push(line);
+      const p = parseLine(line);
+      if (p) { peak = Math.max(peak, p.f); showCheckLive(p.f, peak); }
+    };
+    await sleep(app.config.check_seconds * 1000);
+    app.device.onLine = null;
+    try { const v = await api(`/api/${app.sid}/check`, { lines }); showVerdict(v.ok, v.message); }
+    catch (err) { showVerdict(false, err.message); }
+    return;
+  }
+  const stream = new EventSource(`/api/${app.sid}/check/stream`);
+  stream.addEventListener("point", (e) => { const p = JSON.parse(e.data); peak = Math.max(peak, p.f); showCheckLive(p.f, peak); });
+  stream.addEventListener("verdict", (e) => { stream.close(); const v = JSON.parse(e.data); showVerdict(v.ok, v.message); });
+  stream.onerror = () => { stream.close(); if (b.disabled) showVerdict(false, "The connection to the device was lost."); };
+}
+
+$("btn-check").addEventListener("click", runCheck);
+$("btn-check-skip").addEventListener("click", showTrial);
 
 async function finish() {
   show("screen-finish");
