@@ -178,3 +178,9 @@ kbd { border: var(--rule-hair) solid var(--color-rule-strong); border-bottom-wid
   .overlay { font-size: 5.5rem; }
   .actions .btn { flex: 1 1 auto; }
 }
+
+/* sensor check after zeroing: live reading while the user squeezes once */
+.live-check { font-size: 1.125rem; font-variant-numeric: tabular-nums; margin: var(--space-sm) 0; }
+.live-check span { font-weight: 700; }
+#check-box { display: flex; flex-direction: column; gap: var(--space-sm); }
+#check-box[hidden] { display: none; }

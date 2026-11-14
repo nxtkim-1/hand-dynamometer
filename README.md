@@ -48,19 +48,20 @@ Grip strength is a validated clinical measure and a diagnostic criterion for sar
 
 ## Features
 
-- **Web app (GripCheck).** `python webapp.py` opens the test in the browser: a participant form (age, sex, dominant hand, and optional ID, height, weight and injury history), posture instructions, a 3-2-1 countdown, a live force graph, immediate feedback on each trial with the option to repeat it, timed rest periods, and a final report that can be saved as a PDF with the same layout.
+- **Web app (GripCheck).** `python webapp.py` reads the real dynamometer and opens the test in the browser (`python webapp.py --simulate` runs it with simulated data): a participant form (age, sex, dominant hand, and optional ID, height, weight and injury history), posture instructions, a 3-2-1 countdown, a live force graph, immediate feedback on each trial with the option to repeat it, timed rest periods, and a final report that can be saved as a PDF with the same layout.
 - **Standardized protocol.** The application guides the user through three maximal trials per hand, alternating hands to allow recovery, followed by a 30-second sustained-effort fatigue test. Posture instructions and verbal encouragement are fixed in the code so that every trial is administered identically, in keeping with the American Society of Hand Therapists (ASHT) recommendations.
 - **Live visualization.** Force is plotted in real time on a scrolling five-second window while each trial is recorded.
 - **Five force-time metrics.** Peak force, time to peak force, rate of force development (RFD), fatigue index, and bilateral asymmetry are computed for every session.
 - **Normative comparison.** The best grip is compared with age- and sex-specific values from Dodds et al. (2014) and reported as a percentile band, a Z-score, an estimated percentile, and a T-score. The EWGSOP2 and AWGS 2019 cut-offs for low grip strength are applied to users aged 65 and over.
 - **Complete data retention.** Every session is saved under a unique timestamp as a raw force-time file, a per-trial summary file, and a centile plot, so that new metrics can later be computed from existing recordings without repeating the test.
-- **Hardware-independent development.** A single setting (`USE_FAKE`) switches between the Arduino and a realistic simulated signal, which allows the entire application to be run and tested without the device.
+- **Hardware-independent development.** The real device is the default; `--simulate` (or `GRIPCHECK_SIMULATE=1`) switches to a realistic simulated signal, which allows the entire application to be run and tested without the device.
+- **Sensor check and device fault messages.** After zeroing, the app asks for one squeeze and checks that the force rises and returns to zero. A recording whose force goes negative (wrong `SIGN` in the firmware) or barely changes (no force reaching the load cell) is rejected with the likely cause and fix, instead of being scored as a 0 kg trial. The live graph also draws negative force below zero rather than hiding it.
 - **Live HTML report.** A browser page opens after the first trial and refreshes as each recording finishes, showing peak force, trial-to-trial coefficient of variation, force-time curves, and the normative comparison.
 - **Signal filtering.** Metrics are computed on curves smoothed with a zero-phase, 4th-order Butterworth low-pass filter (10 Hz), while the raw signal is saved unchanged. In a Monte Carlo comparison of 300 simulated trials, this filter reduced the spread of RFD error with little bias, whereas a 5-point moving average introduced a consistent overestimate.
 - **Session history.** `history.py` uses pandas to combine every saved session into a dashboard of best peak force, coefficient of variation, and fatigue index over time.
 - **Automatic trial-quality check.** Each maximal trial is classified as good, false start, slip, or submaximal effort from five shape features, and the operator is warned immediately so that the trial can be repeated. A Random Forest trained on 2,000 synthetic curves reached 99% test accuracy, compared with 92% for hand-tuned rules. Because the training data are simulated, this result demonstrates the pipeline rather than accuracy on real users.
-- **Hardware safeguards.** The app accepts both the simulator's two-column format and the firmware's four-column format, measures the real sample rate of every recording, adapts the filter to it, reports RFD as n/a when sampling is too slow to estimate it, and stops with a clear message if the firmware has not been calibrated.
-- **Automated tests.** A pytest suite (34 tests) checks the metrics against curves with known answers, verifies that filtering does not shift the signal in time, and runs the full protocol end to end, in the terminal app and in the web app, with simulated data and with a simulated Arduino that speaks the real firmware format.
+- **Hardware safeguards.** The app accepts both the simulator's two-column format and the firmware's four-column format, measures the real sample rate of every recording, adapts the filter to it, reports RFD as n/a when sampling is too slow to estimate it, and stops with a clear message if the firmware has not been calibrated, if the force goes negative, or if no squeeze reached the load cell.
+- **Automated tests.** A pytest suite (73 tests) checks the metrics against curves with known answers, verifies that filtering does not shift the signal in time, and runs the full protocol end to end, in the terminal app and in the web app, with simulated data and with a simulated Arduino that speaks the real firmware format.
 
 ### Example output
 ![Grip strength plotted on Dodds et al. (2014) centile curves](images/centile_plot.png)
@@ -69,7 +70,7 @@ Grip strength is a validated clinical measure and a diagnostic criterion for sar
 
 ## How to run
 
-The top-level Python app runs a standardized grip test on the device, or on fake data while the hardware is being built.
+The top-level Python app runs a standardized grip test on the device. Add `--simulate` to use simulated data instead.
 
 ### Requirements
 Python 3.9 or later.
@@ -80,7 +81,8 @@ pip install -r requirements.txt
 
 ### Run the web app (recommended)
 ```bash
-python webapp.py
+python webapp.py              # real device (plug it in first)
+python webapp.py --simulate   # simulated data, no device needed
 ```
 A browser tab opens at **http://localhost:8000**. Follow the instructions on screen; press **Download PDF** on the final report to save it. The newest report is always at http://localhost:8000/report. The app only accepts connections from this computer. (Port 8000 is used because macOS reserves 5000 for AirPlay.)
 
@@ -94,7 +96,8 @@ The online demo runs with `GRIPCHECK_DEMO=1`: every squeeze is simulated (no dev
 
 ### Run in the terminal
 ```bash
-python grip_test.py
+python grip_test.py              # real device
+python grip_test.py --simulate   # simulated data
 ```
 Enter age, sex, and dominant hand when prompted, then press Enter before each trial. Results are printed to the terminal and saved to the `sessions/` folder.
 
@@ -107,12 +110,14 @@ No code needs editing. Plug the dynamometer in by USB and close the Arduino IDE'
 **From a terminal (any OS):**
 ```bash
 python software/check_device.py      # health check
-python webapp.py --device            # web app, port found automatically
-python grip_test.py --device         # terminal version
-python webapp.py --device --port COM7   # only if several serial devices are plugged in
+python webapp.py                     # web app, port found automatically
+python grip_test.py                  # terminal version
+python webapp.py --port COM7         # only if several serial devices are plugged in
 ```
 
-**In the browser (Chrome or Edge):** run `python webapp.py`, or open a deployed GripCheck site, and press **Connect device** on the first screen. The browser reads the device through Web Serial and the server analyses each trial exactly as in the other routes. On a deployed site, nothing has to be installed on the visitor's computer.
+**In the browser (Chrome or Edge):** run `python webapp.py --simulate`, or open a deployed GripCheck site, and press **Connect device** on the first screen. The browser reads the device through Web Serial and the server analyses each trial exactly as in the other routes. On a deployed site, nothing has to be installed on the visitor's computer.
+
+**Before the six trials:** after **Zero now**, press **Check the sensor**, squeeze once and let go. The app says whether the force rose and came back to zero. If the force goes negative, change `SIGN` in the firmware and upload it again. If it barely moves, check the wiring (DT→D3, SCK→D2, VCC→5V, GND→GND), the load-cell wires, and that the handle presses on the cell. `--device` still works and means the same as no option.
 
 **Firmware:** upload `firmware/grip_firmware_tillaart/grip_firmware_tillaart.ino` (Rob Tillaart's HX711 library) or `firmware/grip_firmware/grip_firmware.ino` (Bogdan Necula's). Both print `t_ms,raw,net,force_kg` at 115200 baud and re-zero on `T`.
 

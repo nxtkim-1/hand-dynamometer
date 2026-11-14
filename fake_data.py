@@ -88,7 +88,7 @@ def make_lines(hand, test, duration_s):
     if random.random() < FAKE_BAD_RATE:
         kind = random.choice(TRIAL_KINDS[1:]) #[1:] = 1번째부터 끝까지 잘라내기 --> "good"을 뺀 ["false_start", "slip", "submaximal"]이야
         #random.choice = pick anything from the list 
-    return max_grip_curve(peak, duration_s)
+    return generate_curve(peak, kind, duration_s)   # use the chosen kind (it used to be ignored, so every trial was "good")
 
 def lines_to_readings(lines):
     """Turn "time,force" text lines into a list of dictionaries."""

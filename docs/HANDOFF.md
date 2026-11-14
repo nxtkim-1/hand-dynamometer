@@ -1,7 +1,7 @@
 # Handoff: where the project stands (2026-11-12)
 
-Written when work moved from the Claude app to Claude Code on Thomas's laptop. Update the status table and
-tick tasks off as they are done; this file is loaded into every Claude Code session through `CLAUDE.md`.
+Written when work moved to Thomas's laptop. Update the status table and tick tasks off as they are done;
+this file is loaded through `CLAUDE.md`.
 
 ## Status
 
@@ -14,6 +14,7 @@ tick tasks off as they are done; this file is loaded into every Claude Code sess
 | G4 closed-book quiz (load path, seam rule, calibration) | Not done | |
 | PR #3 hardware docs + Tillaart firmware | Merged | |
 | PR #4 GripCheck reads the real device (Web Serial, `--device`, calibration banner, device check, Windows launchers) | Merged 2026-11-12 | 56 tests pass; checked with simulated devices only |
+| PR (Samuel): real device by default, sensor check, flat/negative recordings rejected | Open 2026-11-14 | 73 tests pass; checked with an emulated Nano only |
 | Real Nano + GripCheck end to end | Not done | |
 | HX711 at 80 Hz (RATE pin) | Not done | needs a photo of the board |
 
@@ -28,7 +29,8 @@ Pull `main` (GitHub Desktop: Fetch origin → Pull).
 2. Close the Arduino Serial Monitor.
 3. Double-click `check_device.bat` (or `python software/check_device.py`). Fix any FAIL it prints and run it again until it says READY.
    Expected WARNs for now: calibration is an estimate, and the 10 Hz sample rate.
-4. Double-click `start_gripcheck.bat` (or `python webapp.py --device`). Do the whole test: zero, 6 squeezes, 30 s hold, then the report.
+4. Double-click `start_gripcheck.bat` (or `python webapp.py`; the real device is now the default).
+   After **Zero now**, press **Check the sensor**, squeeze once and let go: it must say "The sensor works". Do the whole test: zero, 6 squeezes, 30 s hold, then the report.
 5. Expected: "Device connected" badge, the estimated-calibration banner, about 10 samples/s, RFD n/a.
 6. Save the report as PDF and add a screenshot to `docs/proofs/`. Write a dated build-log entry with peak values.
 Done when: a real report exists and is logged. Also add the missing G2 numbers.
@@ -84,7 +86,7 @@ bullet with the measured numbers (COUNTS_PER_KG, nonlinearity %, repeatability %
 describe it as "datasheet-scaled, calibration in progress".
 
 ## Known details
-- This repo on GitHub is the source of truth. An older local copy used during the Claude-app sessions has a
+- This repo on GitHub is the source of truth. An older local copy used before the move has a
   different commit history and should not be pushed.
 - Sample lines from the device: `1234,52410,0,0.000` (t_ms, raw, net, force_kg).
 - Bench numbers: rest about +52,400 raw counts, noise about ±70 counts (about 2 g at 43,000 counts/kg).

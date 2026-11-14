@@ -15,7 +15,9 @@ from grip_compare import assess, print_report, plot_on_centiles
 from report import fmt, make_report
 
 
-USE_FAKE = True
+# The real dynamometer is the default. Simulated data only with --simulate (or GRIPCHECK_SIMULATE=1),
+# so a run that shows a flat or odd curve is always the device, never the simulator by mistake.
+USE_FAKE = os.environ.get("GRIPCHECK_SIMULATE") == "1"
 # "auto" finds the Arduino by its USB chip, so nobody has to edit this file.
 # To force a port: python webapp.py --device --port COM7   (or set GRIPCHECK_PORT)
 PORT = os.environ.get("GRIPCHECK_PORT", "auto") #PORT는 컴퓨터가 Arduino와 통신하는 연결 경로야
@@ -29,6 +31,8 @@ REST_SECONDS = 3 if USE_FAKE else 60 #가짜 데이터는 60초동안 쉴 필요
 SESSIONS_DIR = Path(__file__).parent / "sessions" #파일을 만드는 경로만 만들어 놈
 
 # Sanity limits for real hardware
+MIN_SQUEEZE_KG = 2.0     # a real squeeze must rise at least this far above zero
+NEGATIVE_KG = -1.0       # going this far below zero means the sign is flipped or the cell is loaded backwards
 MAX_PLAUSIBLE_KG = 150   # the load cell is rated 100 kg; anything far above means "not calibrated yet"
 MIN_RATE_HZ = 40         # below this, RFD is unreliable (the firmware's default HX711 rate is 10 Hz)
 
@@ -82,7 +86,7 @@ def find_arduino_port():
 
 
 def use_device(port=None):
-    """Switch from simulated data to the real device (what --device does)."""
+    """Use the real device (the default; --device is kept so older commands and launchers still work)."""
     global USE_FAKE, REST_SECONDS, PORT
     USE_FAKE = False
     REST_SECONDS = 60
@@ -90,11 +94,27 @@ def use_device(port=None):
         PORT = port
 
 
+def use_simulator():
+    """Use simulated curves instead of the device (what --simulate does)."""
+    global USE_FAKE, REST_SECONDS
+    USE_FAKE = True
+    REST_SECONDS = 3
+
+
 def device_args(parser):
-    """The two command-line options shared by grip_test.py and webapp.py."""
-    parser.add_argument("--device", action="store_true", help="use the real dynamometer instead of simulated data")
+    """The command-line options shared by grip_test.py and webapp.py."""
+    parser.add_argument("--simulate", action="store_true", help="use simulated data instead of the real dynamometer")
+    parser.add_argument("--device", action="store_true", help="use the real dynamometer (the default; kept for old commands)")
     parser.add_argument("--port", help="serial port, e.g. COM7 or /dev/cu.usbserial-110 (default: find it automatically)")
     return parser
+
+
+def apply_args(args):
+    """Turn the parsed options into the device or simulator setting."""
+    if args.simulate:
+        use_simulator()
+    else:
+        use_device(args.port)
 
 
 def connect_serial():
@@ -203,6 +223,49 @@ def record(ser, ax, hand, title, test, seconds):
     return readings
 
 
+def diagnose(readings):
+    """Return a message when a recording cannot be a real squeeze, else None.
+
+    These two problems look like a flat graph and used to be scored as normal trials:
+      - the force went negative: SIGN in the firmware is wrong for how the grip loads the cell
+      - the force hardly changed: no squeeze reached the load cell (wiring, load path, or no squeeze)
+    """
+    forces = [r["force_kg"] for r in readings]
+    low, high = min(forces), max(forces)
+    if low <= NEGATIVE_KG and -low > high:
+        return (f"The force went negative (lowest {low:.1f} kg), but a squeeze must read positive. "
+                "The firmware's SIGN is wrong for how this grip loads the cell: change SIGN in "
+                "grip_firmware_tillaart.ino (-1 to 1, or 1 to -1), upload it again, and repeat.")
+    if high < MIN_SQUEEZE_KG:
+        return (f"The force hardly changed (highest {high:.1f} kg), so no squeeze reached the load cell. "
+                "Check: (1) squeeze during the recording, after \"Squeeze!\"; (2) HX711 wiring DT to D3, SCK to D2, "
+                "VCC to 5V, GND to GND; (3) the four load-cell wires on the HX711; (4) the handle presses on the "
+                "cell and nothing rubs across the seam. Run python software/check_device.py to test each step.")
+    return None
+
+
+CHECK_SECONDS = 6
+RETURN_TOL_KG = 0.5      # after letting go, the reading must come back within this of zero
+
+
+def sensor_check(readings):
+    """Before the test: did one squeeze and release look right? Returns (ok, message)."""
+    if not readings:
+        return False, ("No data from the device. Check the USB cable, close the Arduino Serial Monitor, "
+                       "and upload firmware/grip_firmware_tillaart/grip_firmware_tillaart.ino again.")
+    problem = diagnose(readings)
+    if problem:
+        return False, problem
+    peak = max(r["force_kg"] for r in readings)
+    end = [r["force_kg"] for r in readings if r["time_ms"] >= readings[-1]["time_ms"] - 500]   # last half second
+    after = sum(end) / len(end) + 0.0
+    after = 0.0 if abs(after) < 0.05 else after          # avoid printing "-0.0"
+    if abs(after) > RETURN_TOL_KG:
+        return False, (f"The force rose to {peak:.1f} kg but stayed at {after:.1f} kg after letting go. "
+                       "Something is pressing on the handle or rubbing across the seam; zero again and repeat.")
+    return True, f"The sensor works: the force rose to {peak:.1f} kg and returned to {after:.1f} kg."
+
+
 def check_recording(readings, warned):
     """Catch the two silent hardware problems: wrong sample rate and missing calibration."""
     rate = filters.estimate_rate_hz(readings)
@@ -235,6 +298,9 @@ def run_protocol(ser, stamp, user):
             print(PROMPT_GO)
             readings = record(ser, ax, hand, f"{hand} hand - {trial}", "max", TRIAL_SECONDS)
             warned = check_recording(readings, warned)
+            problem = diagnose(readings)
+            if problem:
+                print("  Warning: " + problem)
             smooth = filters.filter_readings(readings)
             m = metrics.trial_metrics(smooth)
             q = quality.check_trial(smooth)
@@ -361,8 +427,7 @@ def main():
 
 if __name__ == "__main__":
     args = device_args(argparse.ArgumentParser(description="Grip strength test in the terminal")).parse_args()
-    if args.device:
-        use_device(args.port)
+    apply_args(args)
     main()
 
 

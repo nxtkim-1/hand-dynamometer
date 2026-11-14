@@ -151,7 +151,7 @@ def main():
         ser.close()
     fails = [r for r in results if r[0] == "FAIL"]
     print("\nRESULT:", "FAIL - fix the items above, then run this again." if fails
-          else "READY - start GripCheck (start_gripcheck.bat, or python webapp.py --device).")
+          else "READY - start GripCheck (start_gripcheck.bat, or python webapp.py).")
     sys.exit(1 if fails else 0)
 
 

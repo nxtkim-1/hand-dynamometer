@@ -1,7 +1,8 @@
 """
 webapp.py - Browser version of the grip test (GripCheck).
 
-Run on your computer:   python webapp.py      -> a browser tab opens at http://localhost:8000
+Run on your computer:   python webapp.py              -> reads the real dynamometer, http://localhost:8000
+                        python webapp.py --simulate   -> simulated data, no device needed
 Run as the public demo: GRIPCHECK_DEMO=1 gunicorn webapp:app ...   (see render.yaml)
 
 The protocol, metrics, filtering, quality check, saving and report are the SAME code
@@ -14,7 +15,7 @@ How the live graph works (Server-Sent Events):
   and the page redraws the graph each time a message arrives.
 
 Two ways to use the real dynamometer:
-  python webapp.py --device      the server reads the Arduino over USB (port found automatically)
+  python webapp.py               the server reads the Arduino over USB (port found automatically)
   Web Serial (Chrome / Edge)     the visitor's browser reads the Arduino and uploads each trial to
                                  /api/<session id>/step/<n>/upload, so the public site works with a
                                  real device too. Both paths use the same analysis code below.
@@ -168,6 +169,9 @@ def analyse(state, index, readings, skipped):
         grip_test.check_recording(readings, warned=True)   # calibration check (rate shown above)
     except RuntimeError as e:
         return "failed", {"message": str(e)}
+    problem = grip_test.diagnose(readings)                 # flat or negative: not a real squeeze
+    if problem:
+        return "failed", {"message": problem}
 
     smooth = filters.filter_readings(readings)
     m = metrics.trial_metrics(smooth)
@@ -248,6 +252,7 @@ def config():
         "calibration": grip_test.CALIBRATION,
         "calibration_note": grip_test.CALIBRATION_NOTE,
         "rest_seconds": grip_test.REST_SECONDS,
+        "check_seconds": grip_test.CHECK_SECONDS,
         "prompt_posture": grip_test.PROMPT_POSTURE,
         "prompt_go": grip_test.PROMPT_GO,
         "prompt_fatigue": grip_test.PROMPT_FATIGUE,
@@ -333,6 +338,42 @@ def stream_step(sid, index):
                     headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 
+@app.get("/api/<sid>/check/stream")
+def stream_check(sid):
+    """Before the test: record one squeeze from the device the server reads, then say whether it looks right."""
+    state = get_session(sid)
+    if state is None:
+        return no_session()
+    if state.get("ser") is None:
+        return jsonify({"error": "No device connected."}), 400
+
+    def events():
+        lines = []
+        for line in live_lines(state["ser"], None, None, grip_test.CHECK_SECONDS):
+            lines.append(line)
+            parsed = grip_test.parse_line(line)
+            if parsed is not None:
+                yield sse("point", {"t": parsed[0], "f": round(parsed[1], 2)})
+        ok, message = grip_test.sensor_check(lines_to_readings(lines)[0])
+        yield sse("verdict", {"ok": ok, "message": message})
+
+    return Response(events(), mimetype="text/event-stream",
+                    headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+@app.post("/api/<sid>/check")
+def upload_check(sid):
+    """The same check for a device read by the visitor's browser (Web Serial)."""
+    if get_session(sid) is None:
+        return no_session()
+    lines = (request.get_json(force=True, silent=True) or {}).get("lines")
+    if (not isinstance(lines, list) or len(lines) > MAX_UPLOAD_LINES
+            or not all(isinstance(x, str) and len(x) <= 120 for x in lines)):
+        return jsonify({"error": "The recording could not be read."}), 400
+    ok, message = grip_test.sensor_check(lines_to_readings(lines)[0])
+    return jsonify({"ok": ok, "message": message})
+
+
 @app.post("/api/<sid>/step/<int:index>/upload")
 def upload_step(sid, index):
     """One trial recorded by the visitor's browser from the real device (Web Serial)."""
@@ -383,8 +424,10 @@ def finish(sid):
 
 if __name__ == "__main__":
     args = grip_test.device_args(argparse.ArgumentParser(description="GripCheck in the browser")).parse_args()
-    if args.device:
-        grip_test.use_device(args.port)
+    if not DEMO:
+        grip_test.apply_args(args)
+    mode = "simulated data" if grip_test.USE_FAKE else "the real device (use --simulate for simulated data)"
+    print(f"Using {mode}.")
     url = f"http://localhost:{PORT_NUMBER}"
     print(f"GripCheck is running at {url}  (press Ctrl+C here to stop)")
     threading.Timer(1.0, lambda: webbrowser.open(url)).start()

@@ -94,6 +94,16 @@
       Nothing should touch the handle while it is being zeroed.</p>
     <p id="tare-error" class="error" role="alert" hidden></p>
     <button class="btn primary" id="btn-tare">Zero now</button>
+    <div id="check-box" hidden>
+      <p class="lead">Now check the sensor: press <b>Check the sensor</b>, squeeze the handle once firmly,
+        then let go completely.</p>
+      <p class="live-check"><span id="check-force">0.0</span> kg now · peak <span id="check-peak">0.0</span> kg</p>
+      <p id="check-result" class="notice" role="status" hidden></p>
+      <div class="actions">
+        <button class="btn primary" id="btn-check" type="button">Check the sensor</button>
+        <button class="btn secondary" id="btn-check-skip" type="button">Start the test</button>
+      </div>
+    </div>
   </section>
 
   <!-- 4. Trials -->
