@@ -7,7 +7,7 @@ __pycache__/
 cad/
 docs/
 firmware/
-images/
+/images/
 models/
 practice/
 sessions/
