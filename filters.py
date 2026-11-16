@@ -6,9 +6,13 @@ Two filters are compared:
   2. 4th-order Butterworth low-pass, applied forwards and backwards (scipy)
 """
 
-from scipy.signal import butter, filtfilt
-#scipy = 과학 계산 도구상자, signal =  신호 처리 칸, butter = Butterworth 필터의 설계도를 만드는 함수
-#filtfilt = 설계도로 신호를 앞뒤로 거르는 함수
+import math
+
+try:
+    from scipy.signal import butter, filtfilt
+except ImportError:
+    butter = None
+    filtfilt = None
 
 SAMPLE_RATE_HZ = 50
 CUTOFF_HZ = 10
@@ -36,13 +40,82 @@ def moving_average(values, window = 5):
         smooth.append(sum(chunk)/ len(chunk))
     return smooth 
 
+
+def _poly(roots):
+    coeffs = [1.0 + 0j]
+    for r in roots:
+        nxt = [0j] * (len(coeffs) + 1)
+        for i, c in enumerate(coeffs):
+            nxt[i] += c
+            nxt[i + 1] -= c * r
+        coeffs = nxt
+    return [c.real for c in coeffs]
+
+
+def _butter_coeffs(order, cutoff_hz, fs):
+    wn = 2.0 * cutoff_hz / fs
+    warped = 4.0 * math.tan(math.pi * wn / 2.0)
+    m_vals = range(-order + 1, order, 2)
+    poles = [-warped * complex(math.cos(math.pi * m / (2 * order)),
+                               math.sin(math.pi * m / (2 * order))) for m in m_vals]
+    z_poles = [(4.0 + p) / (4.0 - p) for p in poles]
+    z_zeros = [-1.0] * order
+    gain = warped ** order
+    for p in poles:
+        gain /= (4.0 - p)
+    gain = gain.real
+    return [gain * c for c in _poly(z_zeros)], _poly(z_poles)
+
+
+def _lfilter_zi(b, a):
+    n = len(a) - 1
+    b = [c / a[0] for c in b]
+    a = [c / a[0] for c in a]
+    sum_a = sum(a[1:])
+    sum_b = sum(b[1:])
+    zi = [0.0] * n
+    zi[0] = (sum_b - b[0] * sum_a) / (1.0 + sum_a)
+    for i in range(1, n):
+        zi[i] = sum(b[j] - a[j] * b[0] - a[j] * zi[0] for j in range(i + 1, n + 1))
+    return zi
+
+
+def _lfilter(b, a, values, zi):
+    n = len(a) - 1
+    z = list(zi)
+    out = []
+    for x in values:
+        y = b[0] * x + z[0]
+        for j in range(n - 1):
+            z[j] = b[j + 1] * x + z[j + 1] - a[j + 1] * y
+        z[n - 1] = b[n] * x - a[n] * y
+        out.append(y)
+    return out
+
+
+def _pure_filtfilt(b, a, values):
+    padlen = 3 * max(len(a), len(b))
+    ext = (
+        [2.0 * values[0] - values[i] for i in range(padlen, 0, -1)]
+        + list(values)
+        + [2.0 * values[-1] - values[-1 - i] for i in range(1, padlen + 1)]
+    )
+    zi = _lfilter_zi(b, a)
+    y = _lfilter(b, a, ext, [z * ext[0] for z in zi])
+    y_rev = y[::-1]
+    y2 = _lfilter(b, a, y_rev, [z * y_rev[0] for z in zi])
+    out = y2[::-1]
+    return out[padlen : len(ext) - padlen]
+
+
 def butter_lowpass(values, cutoff_hz = CUTOFF_HZ, fs = SAMPLE_RATE_HZ, order = 4):
-    b,a = butter(order, cutoff_hz, fs = fs)
-    #필터의 설계도(숫자 두 묶음 b, a)를 만들어. 
-    #4차, 10 Hz, 50 Hz 신호용 필터"
-    return list(filtfilt(b,a, values))
-    #filtfilt(b,a, values) = 설계도로 신호를 앞으로 한 번, 뒤로 한 번 걸러
-    #list() = numpy list so change to normal list
+    if butter is not None and filtfilt is not None:
+        b,a = butter(order, cutoff_hz, fs = fs)
+        #필터의 설계도(숫자 두 묶음 b, a)를 만들어. 
+        #4차, 10 Hz, 50 Hz 신호용 필터"
+        return list(filtfilt(b,a, values))
+    b, a = _butter_coeffs(order, cutoff_hz, fs)
+    return _pure_filtfilt(b, a, values)
 
 def filter_readings(readings, method = "butter"):
     """Return a new, smoothed copy of a curve. The original is not changed.

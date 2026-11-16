@@ -40,3 +40,14 @@ def test_slow_and_short_inputs_do_not_crash():
     assert len(filters.filter_readings(squeeze(10))) == 50    # 10 Hz: cutoff lowered automatically
     short = squeeze(50, seconds=0.2)
     assert filters.filter_readings(short)[3]["force_kg"] == round(short[3]["force_kg"], 3)
+
+
+def test_pure_python_butterworth_fallback(monkeypatch):
+    monkeypatch.setattr(filters, "butter", None)
+    monkeypatch.setattr(filters, "filtfilt", None)
+    raw = squeeze(50)
+    smooth = filters.filter_readings(raw)
+    t_raw = next(r["time_ms"] for r in raw if r["force_kg"] >= 17)
+    t_smooth = next(r["time_ms"] for r in smooth if r["force_kg"] >= 17)
+    assert abs(t_smooth - t_raw) <= 20
+    assert len(filters.filter_readings(squeeze(10))) == 50

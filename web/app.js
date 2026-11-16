@@ -13,10 +13,14 @@ const INK = { muted: token("--color-muted"), rule: token("--color-rule"), font: 
 const app = {
   config: null,
   sid: null,         // this visitor's test id, sent with every request
+  stateless: false,  // true on Vercel serverless: client holds trial results between steps
+  fake: true,
+  user: null,
   plan: [],
   index: 0,          // which step of the plan we are on
   points: [],        // points of the trial being recorded: {t (ms), f (kg)}
   traces: {},        // finished trials, kept to draw faintly behind the next one
+  results: {},       // finished trial payloads in stateless mode
   flags: {},         // steps whose quality was not "good"
   phase: "idle",     // idle | countdown | recording | resting | done
   restTimer: null,
@@ -174,6 +178,43 @@ function showTrial() {
   $("btn-primary").focus();
 }
 
+async function runStatelessSimulated(step, simPromise) {
+  let sim;
+  try {
+    sim = await simPromise;
+  } catch (err) {
+    failTrial(err.message);
+    return;
+  }
+  const lines = sim.lines || [];
+  let first = null, peak = 0;
+  const started = performance.now();
+  for (const line of lines) {
+    if (app.phase !== "recording") return;
+    const p = parseLine(line);
+    if (!p) continue;
+    if (first === null) first = p.t;
+    const rel = p.t - first;
+    const wait = rel - (performance.now() - started);
+    if (wait > 4) await sleep(wait);
+    if (app.phase !== "recording") return;
+    const point = { t: rel, f: p.f };
+    app.points.push(point);
+    peak = Math.max(peak, point.f);
+    $("live-force").textContent = point.f.toFixed(1);
+    $("live-peak").textContent = peak.toFixed(1);
+    $("live-left").textContent = Math.max(0, step.seconds - rel / 1000).toFixed(0);
+    requestDraw();
+  }
+  try {
+    const res = await api("/api/analyse", { step, lines });
+    app.results[app.index] = res.trial;
+    finishTrial(res);
+  } catch (err) {
+    failTrial(err.message);
+  }
+}
+
 async function runTrial() {
   const step = app.plan[app.index];
   app.phase = "countdown";
@@ -183,6 +224,11 @@ async function runTrial() {
   $("trial-error").hidden = true;
   setPrimary("Recording...", false);
   requestDraw();
+
+  const simPromise = (app.stateless && app.source !== "browser")
+    ? api("/api/simulate", { hand: step.hand, test: step.test, seconds: step.seconds })
+    : null;
+  if (simPromise) simPromise.catch(() => {});
 
   const overlay = $("overlay");
   overlay.hidden = false; overlay.classList.remove("go");
@@ -195,6 +241,7 @@ async function runTrial() {
   app.phase = "recording";
 
   if (app.source === "browser") return recordFromDevice(step);
+  if (app.stateless) return runStatelessSimulated(step, simPromise);
 
   const stream = new EventSource(`/api/${app.sid}/step/${app.index}/stream`);
   let peak = 0;
@@ -301,6 +348,7 @@ $("btn-primary").addEventListener("click", async () => {
 $("btn-repeat").addEventListener("click", () => {
   clearInterval(app.restTimer);
   delete app.traces[app.index];
+  delete app.results[app.index];
   showTrial();
 });
 
@@ -403,7 +451,15 @@ async function recordFromDevice(step) {
   }
   if (!app.device) return;                       // unplugged: deviceLost() already reported it
   app.device.onLine = null;
-  try { finishTrial(await api(`/api/${app.sid}/step/${app.index}/upload`, { lines })); }
+  try {
+    if (app.stateless) {
+      const res = await api("/api/analyse", { step, lines });
+      app.results[app.index] = res.trial;
+      finishTrial(res);
+    } else {
+      finishTrial(await api(`/api/${app.sid}/step/${app.index}/upload`, { lines }));
+    }
+  }
   catch (err) { failTrial(err.message); }
 }
 
@@ -437,7 +493,8 @@ $("user-form").addEventListener("submit", async (e) => {
   $("btn-form").disabled = true;
   try {
     const data = await api("/api/start", body);
-    app.sid = data.session_id; app.plan = data.plan; app.index = 0; app.traces = {}; app.flags = {};
+    app.sid = data.session_id; app.plan = data.plan; app.index = 0; app.traces = {}; app.results = {}; app.flags = {};
+    app.user = body; app.stateless = Boolean(data.stateless); app.fake = Boolean(data.fake);
     app.source = data.source; app.restSeconds = data.rest_seconds;
     if (data.needs_tare) { show("screen-tare"); $("btn-tare").focus(); }
     else showTrial();
@@ -468,6 +525,14 @@ async function finish() {
   show("screen-finish");
   $("progress").hidden = true;
   try {
+    if (app.stateless) {
+      const trials = app.plan.map((_, i) => app.results[i]);
+      const data = await api("/api/report", { user: app.user, trials, fake: app.fake });
+      document.open();
+      document.write(data.html);
+      document.close();
+      return;
+    }
     const data = await api(`/api/${app.sid}/finish`, {});
     window.location.href = data.report_url;
   } catch (err) {

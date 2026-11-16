@@ -28,3 +28,6 @@ desktop.ini
 
 # personal Claude Code instructions (each person keeps their own)
 CLAUDE.local.md
+
+.vercel/
+.vercel

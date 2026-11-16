@@ -1,6 +1,5 @@
 import math
 import random
-import matplotlib.pyplot as plt
 
 SAMPLE_RATE_HZ = 50 # how many measurements per second
 DT_MS = 1000 // SAMPLE_RATE_HZ        #Ms = milliseconds
@@ -99,6 +98,7 @@ def lines_to_readings(lines):
     return readings
 
 if __name__ == "__main__": #if I am running this code directly by pressing play button
+    import matplotlib.pyplot as plt
     fig, axes = plt.subplots(2, 2, figsize = (9,6)) #가로 2 × 세로 2 = 칸 4개, 전체 그림의 가로 9인치, 세로 6인치
     for kind, ax in zip(TRIAL_KINDS, axes.flatten()): #axes.flatten() → 2줄짜리 칸 묶음 [[칸1, 칸2], [칸3, 칸4]]을 한 줄로 핌
         #zip(TRIAL_KINDS, axes.flatten()) → 종류 4개와 칸 4개를 순서대로 짝지어. "good"은 칸1, "false_start"는 칸2, ...

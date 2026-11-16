@@ -1,9 +1,13 @@
 import html
+import math
 import statistics
 import webbrowser
 from pathlib import Path
 
-import matplotlib.pyplot as plt
+try:
+    import matplotlib.pyplot as plt
+except ImportError:
+    plt = None
 
 WEB = Path(__file__).parent / "web"
 
@@ -36,8 +40,9 @@ REPORT_CSS = """
   .bad { color: var(--color-warn-ink); font-weight: 600; }
   .block ul { padding-left: var(--space-lg); }
   .block li + li { margin-top: var(--space-2xs); }
-  img { width: 100%; background: var(--color-paper-2); border-radius: var(--radius-control); margin: var(--space-sm) 0;
-        border: var(--rule-hair) solid var(--color-rule); }
+  img, .chart-svg { width: 100%; height: auto; display: block; background: var(--color-paper-2);
+                    border-radius: var(--radius-control); margin: var(--space-sm) 0;
+                    border: var(--rule-hair) solid var(--color-rule); }
   .note { font-size: var(--text-sm); color: var(--color-muted); margin-top: var(--space-xl); }
   .toolbar { display: flex; flex-wrap: wrap; gap: var(--space-sm); margin: var(--space-md) 0; }
   .btn { font: inherit; font-weight: 600; line-height: 1.5; padding: var(--space-xs) var(--space-md); min-height: 44px;
@@ -59,9 +64,9 @@ REPORT_CSS = """
     body { background: var(--color-paper-2); margin: 0; max-width: none; }
     .no-print { display: none !important; }
     .card { box-shadow: none; border: var(--rule-hair) solid var(--color-rule-strong); }
-    .card, img, tr, .block { break-inside: avoid; }
+    .card, img, .chart-svg, tr, .block { break-inside: avoid; }
     h2 { break-after: avoid; }
-    img { max-height: 105mm; width: auto; max-width: 100%; display: block; margin: var(--space-xs) auto; }
+    img, .chart-svg { max-height: 105mm; width: auto; max-width: 100%; display: block; margin: var(--space-xs) auto; }
     * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   }
 """
@@ -132,6 +137,8 @@ def style_axes(ax, title):
 
 
 def plot_curves(trials, fatigue, save_path):
+    if plt is None:
+        return
     rows = 2 if fatigue is not None else 1
     fig, axes = plt.subplots(rows, 1, figsize=(8, 3.4 * rows), squeeze=False)
     ax1 = axes[0][0]
@@ -158,19 +165,155 @@ def plot_curves(trials, fatigue, save_path):
     plt.close(fig)
 
 
-def make_report(stamp, user, trials, folder, is_fake=True,
-                fatigue=None, summary=None, result=None, total_trials=7,
-                open_browser=True, home_url=None, calibration=None):
-    """Write session_<stamp>_report.html. Opens the browser the first time (terminal app only)."""
-    live = summary is None
-    report_path = folder / f"session_{stamp}_report.html"
-    first_time = not report_path.exists()
-    folder.mkdir(exist_ok=True)
+def _svg_line_chart(title, series_list, x_max, y_max, x_label="Time (s)", y_label="Force (kg)", height=260):
+    w, h = 680, height
+    pad_l, pad_r, pad_t, pad_b = 56, 20, 42, 42
+    plot_w = w - pad_l - pad_r
+    plot_h = h - pad_t - pad_b
+    x_max = max(x_max, 1.0)
+    y_max = max(y_max, 10.0)
+    sx = lambda v: pad_l + (v / x_max) * plot_w
+    sy = lambda v: pad_t + plot_h - (max(0.0, v) / y_max) * plot_h
 
-    curves_name = f"session_{stamp}_curves.png"
-    plot_curves(trials, fatigue, folder / curves_name)
+    parts = [
+        f'<svg class="chart-svg" viewBox="0 0 {w} {h}" role="img" aria-label="{html.escape(title)}">',
+        f'<text x="{pad_l}" y="24" font-size="15" font-weight="700" fill="{INK["ink"]}">{html.escape(title)}</text>',
+    ]
+    y_step = 20 if y_max > 80 else 10
+    for yv in range(0, int(y_max) + 1, y_step):
+        py = sy(yv)
+        parts.append(f'<line x1="{pad_l}" x2="{w - pad_r}" y1="{py:.1f}" y2="{py:.1f}" stroke="{INK["rule"]}" stroke-width="1"/>')
+        parts.append(f'<text x="{pad_l - 8}" y="{py + 4:.1f}" text-anchor="end" font-size="11" fill="{INK["muted"]}">{yv}</text>')
+
+    x_step = 5 if x_max > 10 else 1
+    xv = 0
+    while xv <= x_max + 1e-6:
+        px = sx(xv)
+        parts.append(f'<line x1="{px:.1f}" x2="{px:.1f}" y1="{pad_t}" y2="{pad_t + plot_h}" stroke="{INK["rule"]}" stroke-width="1"/>')
+        parts.append(f'<text x="{px:.1f}" y="{pad_t + plot_h + 17}" text-anchor="middle" font-size="11" fill="{INK["muted"]}">{int(round(xv))}</text>')
+        xv += x_step
+
+    parts.append(f'<text x="{pad_l + plot_w / 2:.1f}" y="{h - 6}" text-anchor="middle" font-size="11" fill="{INK["muted"]}">{html.escape(x_label)}</text>')
+    parts.append(f'<text x="15" y="{pad_t + plot_h / 2:.1f}" text-anchor="middle" font-size="11" fill="{INK["muted"]}" transform="rotate(-90 15 {pad_t + plot_h / 2:.1f})">{html.escape(y_label)}</text>')
+
+    for item in series_list:
+        pts = item["points"]
+        if not pts:
+            continue
+        p_str = " ".join(f"{sx(px):.1f},{sy(py):.1f}" for px, py in pts)
+        dash = f' stroke-dasharray="{item["dash"]}"' if item.get("dash") else ""
+        parts.append(f'<polyline fill="none" stroke="{item["color"]}" stroke-width="2.2" stroke-linejoin="round"{dash} points="{p_str}"/>')
+
+    if len(series_list) > 1:
+        lx, ly = pad_l + 10, pad_t + 14
+        for idx, item in enumerate(series_list):
+            col = idx % 3
+            row = idx // 3
+            ix = lx + col * 115
+            iy = ly + row * 16
+            dash = f' stroke-dasharray="{item["dash"]}"' if item.get("dash") else ""
+            parts.append(f'<line x1="{ix}" x2="{ix + 18}" y1="{iy - 4}" y2="{iy - 4}" stroke="{item["color"]}" stroke-width="2.2"{dash}/>')
+            parts.append(f'<text x="{ix + 24}" y="{iy}" font-size="11" fill="{INK["ink"]}">{html.escape(item["label"])}</text>')
+
+    parts.append("</svg>")
+    return "\n".join(parts)
+
+
+def svg_curves(trials, fatigue):
+    dashes = {1: "", 2: "6,4", 3: "2,4"}
+    max_series = []
+    max_x = 5.0
+    max_y = 40.0
+    for t in trials:
+        curve = t.get("smooth", t.get("readings", []))
+        pts = [(r["time_ms"] / 1000.0, r["force_kg"]) for r in curve]
+        if pts:
+            max_x = max(max_x, max(p[0] for p in pts))
+            max_y = max(max_y, max(p[1] for p in pts))
+        max_series.append({
+            "points": pts,
+            "color": HAND_COLORS.get(t["hand"], INK["ink"]),
+            "dash": dashes.get(t["trial"], ""),
+            "label": f"{t['hand']} {t['trial']}",
+        })
+    max_y = max(40.0, math.ceil(max_y * 1.12 / 10.0) * 10.0)
+    svgs = [_svg_line_chart("Maximal grip trials (filtered)", max_series, math.ceil(max_x), max_y)]
+
+    if fatigue is not None:
+        curve = fatigue.get("smooth", fatigue.get("readings", []))
+        pts = [(r["time_ms"] / 1000.0, r["force_kg"]) for r in curve]
+        f_x = max(30.0, math.ceil(max((p[0] for p in pts), default=32.0) / 5.0) * 5.0)
+        f_y = max(40.0, math.ceil(max((p[1] for p in pts), default=40.0) * 1.12 / 10.0) * 10.0)
+        svgs.append(_svg_line_chart(
+            f"30-second fatigue test ({fatigue['hand']} hand)",
+            [{"points": pts, "color": HAND_COLORS["fatigue"], "dash": "", "label": fatigue["hand"]}],
+            f_x, f_y,
+        ))
+    return "\n".join(svgs)
+
+
+def svg_centiles(result, norms=None):
+    from grip_compare import load_norms
+    if norms is None:
+        norms = load_norms()
+    rows = [r for r in norms if r["sex"] == result["sex"]]
+    if not rows:
+        return ""
+    w, h = 680, 340
+    pad_l, pad_r, pad_t, pad_b = 56, 20, 42, 42
+    plot_w = w - pad_l - pad_r
+    plot_h = h - pad_t - pad_b
+    min_age = min(r["age"] for r in rows)
+    max_age = max(r["age"] for r in rows)
+    y_max = max(70.0, math.ceil(max(max(r["p90"] for r in rows), result["force"]) * 1.08 / 10.0) * 10.0)
+    sx = lambda age: pad_l + ((age - min_age) / max(1, max_age - min_age)) * plot_w
+    sy = lambda kg: pad_t + plot_h - (max(0.0, kg) / y_max) * plot_h
+
+    wide = [f"{sx(r['age']):.1f},{sy(r['p90']):.1f}" for r in rows] + [f"{sx(r['age']):.1f},{sy(r['p10']):.1f}" for r in reversed(rows)]
+    narrow = [f"{sx(r['age']):.1f},{sy(r['p75']):.1f}" for r in rows] + [f"{sx(r['age']):.1f},{sy(r['p25']):.1f}" for r in reversed(rows)]
+    med = " ".join(f"{sx(r['age']):.1f},{sy(r['p50']):.1f}" for r in rows)
+    px = sx(result["age"])
+    py = sy(result["force"])
+
+    parts = [
+        f'<svg class="chart-svg" viewBox="0 0 {w} {h}" role="img" aria-label="Dodds et al. (2014) norms, {html.escape(result["sex"])}">',
+        f'<text x="{pad_l}" y="24" font-size="15" font-weight="700" fill="{INK["ink"]}">Dodds et al. (2014) norms, {html.escape(result["sex"])}</text>',
+    ]
+    for yv in range(0, int(y_max) + 1, 10):
+        gy = sy(yv)
+        parts.append(f'<line x1="{pad_l}" x2="{w - pad_r}" y1="{gy:.1f}" y2="{gy:.1f}" stroke="{INK["rule"]}" stroke-width="1"/>')
+        parts.append(f'<text x="{pad_l - 8}" y="{gy + 4:.1f}" text-anchor="end" font-size="11" fill="{INK["muted"]}">{yv}</text>')
+    for age in range(10, int(max_age) + 1, 10):
+        gx = sx(age)
+        parts.append(f'<text x="{gx:.1f}" y="{pad_t + plot_h + 17}" text-anchor="middle" font-size="11" fill="{INK["muted"]}">{age}</text>')
+
+    parts.append(f'<polygon fill="#f3efeb" points="{" ".join(wide)}"/>')
+    parts.append(f'<polygon fill="#e7ddd3" points="{" ".join(narrow)}"/>')
+    parts.append(f'<polyline fill="none" stroke="{INK["muted"]}" stroke-width="2" points="{med}"/>')
+    parts.append(f'<circle cx="{px:.1f}" cy="{py:.1f}" r="5.5" fill="{HAND_COLORS["right"]}" stroke="#ffffff" stroke-width="2"/>')
+    parts.append(f'<text x="{pad_l + plot_w / 2:.1f}" y="{h - 6}" text-anchor="middle" font-size="11" fill="{INK["muted"]}">Age (years)</text>')
+    parts.append(f'<text x="15" y="{pad_t + plot_h / 2:.1f}" text-anchor="middle" font-size="11" fill="{INK["muted"]}" transform="rotate(-90 15 {pad_t + plot_h / 2:.1f})">Grip strength (kg)</text>')
+    parts.append(
+        f'<rect x="{pad_l + 10}" y="{pad_t + 6}" width="12" height="10" fill="#f3efeb" stroke="{INK["rule"]}"/>'
+        f'<text x="{pad_l + 26}" y="{pad_t + 15}" font-size="11" fill="{INK["ink"]}">10th–90th</text>'
+        f'<rect x="{pad_l + 95}" y="{pad_t + 6}" width="12" height="10" fill="#e7ddd3"/>'
+        f'<text x="{pad_l + 111}" y="{pad_t + 15}" font-size="11" fill="{INK["ink"]}">25th–75th</text>'
+        f'<line x1="{pad_l + 180}" x2="{pad_l + 196}" y1="{pad_t + 11}" y2="{pad_t + 11}" stroke="{INK["muted"]}" stroke-width="2"/>'
+        f'<text x="{pad_l + 202}" y="{pad_t + 15}" font-size="11" fill="{INK["ink"]}">Median</text>'
+        f'<circle cx="{pad_l + 264}" cy="{pad_t + 11}" r="4.5" fill="{HAND_COLORS["right"]}"/>'
+        f'<text x="{pad_l + 274}" y="{pad_t + 15}" font-size="11" fill="{INK["ink"]}">My measurement</text>'
+    )
+    parts.append("</svg>")
+    return "\n".join(parts)
+
+
+def render_report(stamp, user, trials, is_fake=True, fatigue=None, summary=None, result=None,
+                  total_trials=7, home_url=None, calibration=None, inline_charts=False,
+                  curves_src="", centiles_src=""):
+    """Build the complete GripCheck report HTML string."""
+    live = summary is None
     done = len(trials) + (1 if fatigue is not None else 0)
-    version = f"?v={done}"                 # makes the browser load the new picture
+    use_inline = inline_charts or plt is None
 
     refresh = '<meta http-equiv="refresh" content="2">' if live else ""
     banners = ""
@@ -215,6 +358,7 @@ def make_report(stamp, user, trials, folder, is_fake=True,
     if result is not None:
         cutoff_items = "".join(f"<li><b>{name}:</b> {v}</li>"
                                for name, v in result["cutoffs"].items())
+        centile_chart = svg_centiles(result) if use_inline else f'<img src="{centiles_src}" alt="Centile plot">'
         comparison = f"""
 <section class="block">
 <h2>Comparison with normative data</h2>
@@ -226,12 +370,13 @@ def make_report(stamp, user, trials, folder, is_fake=True,
   <li><b>T-score:</b> {result['t']}</li>
   {cutoff_items}
 </ul>
-<img src="session_{stamp}_centiles.png" alt="Centile plot">
+{centile_chart}
 </section>"""
 
+    curves_chart = svg_curves(trials, fatigue) if use_inline else f'<img src="{curves_src}" alt="Force-time curves">'
     # the page title becomes the default file name when the report is saved as a PDF
     page_title = " ".join(p for p in ["GripCheck report", html.escape(str(user.get("participant_id") or "")), stamp] if p)
-    html_text = f"""<!DOCTYPE html>
+    return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -249,7 +394,7 @@ def make_report(stamp, user, trials, folder, is_fake=True,
 {comparison}
 <section class="block">
 <h2>Force-time curves</h2>
-<img src="{curves_name}{version}" alt="Force-time curves">
+{curves_chart}
 </section>
 <h2>Maximal trials</h2>
 <div class="table-wrap">
@@ -264,6 +409,26 @@ Educational project - not a medical device and not a diagnosis.</p>
 </body>
 </html>
 """
+
+
+def make_report(stamp, user, trials, folder, is_fake=True,
+                fatigue=None, summary=None, result=None, total_trials=7,
+                open_browser=True, home_url=None, calibration=None):
+    """Write session_<stamp>_report.html. Opens the browser the first time (terminal app only)."""
+    report_path = folder / f"session_{stamp}_report.html"
+    first_time = not report_path.exists()
+    folder.mkdir(exist_ok=True)
+
+    curves_name = f"session_{stamp}_curves.png"
+    plot_curves(trials, fatigue, folder / curves_name)
+    done = len(trials) + (1 if fatigue is not None else 0)
+    html_text = render_report(
+        stamp, user, trials, is_fake=is_fake, fatigue=fatigue, summary=summary,
+        result=result, total_trials=total_trials, home_url=home_url,
+        calibration=calibration, inline_charts=(plt is None),
+        curves_src=f"{curves_name}?v={done}",
+        centiles_src=f"session_{stamp}_centiles.png",
+    )
     with open(report_path, "w", encoding="utf-8") as f:
         f.write(html_text)
     if first_time and open_browser:

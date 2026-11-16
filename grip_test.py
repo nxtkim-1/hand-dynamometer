@@ -5,7 +5,10 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-import matplotlib.pyplot as plt
+try:
+    import matplotlib.pyplot as plt
+except ImportError:
+    plt = None
 
 import fake_data
 import filters

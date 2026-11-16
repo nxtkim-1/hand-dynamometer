@@ -35,8 +35,11 @@ import webbrowser
 from datetime import datetime
 from pathlib import Path
 
-import matplotlib
-matplotlib.use("Agg")   # draw figures to files only: a web server must never open plot windows (it can freeze on macOS)
+try:
+    import matplotlib
+    matplotlib.use("Agg")   # draw figures to files only: a web server must never open plot windows (it can freeze on macOS)
+except ImportError:
+    matplotlib = None
 
 from flask import Flask, Response, jsonify, request, send_from_directory
 
@@ -46,7 +49,7 @@ import grip_test
 import metrics
 import quality
 from grip_compare import assess, plot_on_centiles
-from report import fmt, make_report
+from report import fmt, make_report, render_report
 
 WEB_DIR = Path(__file__).parent / "web"
 HOST, PORT_NUMBER = "127.0.0.1", 8000          # 127.0.0.1 = only this computer can open the app
@@ -54,7 +57,8 @@ HOST, PORT_NUMBER = "127.0.0.1", 8000          # 127.0.0.1 = only this computer 
 PLAYBACK_DELAY = 1 / fake_data.SAMPLE_RATE_HZ   # play simulated curves at real speed (tests set 0)
 
 # Public demo: simulated data only, short rests, no "newest report" page (it would show strangers' results)
-DEMO = os.environ.get("GRIPCHECK_DEMO") == "1"
+STATELESS = os.environ.get("GRIPCHECK_STATELESS") == "1" or os.environ.get("VERCEL") == "1"
+DEMO = os.environ.get("GRIPCHECK_DEMO") == "1" or STATELESS
 if DEMO:
     grip_test.USE_FAKE = True
     grip_test.REST_SECONDS = 3
@@ -151,13 +155,11 @@ def no_session():
     return jsonify({"error": "This test has expired. Please start again."}), 404
 
 
-def analyse(state, index, readings, skipped):
-    """Check, filter and score one recorded trial. Returns ("done", results) or ("failed", message).
-    Shared by the live stream (server reads the device or the simulator) and browser uploads."""
-    step = state["plan"][index]
+def _score_trial(step, readings, skipped):
+    """Check, filter and score one recorded trial. Returns ('done', summary, record) or ('failed', message, None)."""
     if not readings:
         hint = f" First non-data line: {skipped[0]!r}" if skipped else ""
-        return "failed", {"message": "No data received - check the USB cable." + hint}
+        return "failed", {"message": "No data received - check the USB cable." + hint}, None
 
     notes = []
     rate = filters.estimate_rate_hz(readings)
@@ -167,7 +169,7 @@ def analyse(state, index, readings, skipped):
     try:
         grip_test.check_recording(readings, warned=True)   # calibration check (rate shown above)
     except RuntimeError as e:
-        return "failed", {"message": str(e)}
+        return "failed", {"message": str(e)}, None
 
     smooth = filters.filter_readings(readings)
     m = metrics.trial_metrics(smooth)
@@ -177,7 +179,6 @@ def analyse(state, index, readings, skipped):
         result["quality"] = quality.check_trial(smooth)["label"]
     else:
         m["fatigue_index_pct"] = metrics.fatigue_index_pct(smooth)
-    state["results"][index] = result      # repeating a trial simply replaces it
 
     return "done", {
         "peak_kg": fmt(m["peak_kg"]),
@@ -186,7 +187,17 @@ def analyse(state, index, readings, skipped):
         "fatigue_index_pct": fmt(m.get("fatigue_index_pct")),
         "quality": result.get("quality"),
         "notes": notes,
-    }
+    }, result
+
+
+def analyse(state, index, readings, skipped):
+    """Check, filter and score one recorded trial. Returns ("done", results) or ("failed", message).
+    Shared by the live stream (server reads the device or the simulator) and browser uploads."""
+    step = state["plan"][index]
+    status, payload, result = _score_trial(step, readings, skipped)
+    if result is not None:
+        state["results"][index] = result      # repeating a trial simply replaces it
+    return status, payload
 
 
 def lines_to_readings(lines):
@@ -243,6 +254,7 @@ def config():
     return jsonify({
         "use_fake": grip_test.USE_FAKE,
         "demo": DEMO,
+        "stateless": STATELESS,
         "browser_device": True,                    # the page may offer Web Serial (Chrome / Edge)
         "baud": grip_test.BAUD,
         "calibration": grip_test.CALIBRATION,
@@ -283,9 +295,11 @@ def start():
         stamp += "_" + sid[:8]                       # unique file names and private report links
     fake = grip_test.USE_FAKE and not browser
     rest = grip_test.REST_SECONDS if fake or not browser else 60      # real squeezes need real rests
-    sessions[sid] = {"stamp": stamp, "user": user, "plan": build_plan(user["dominant"]),
-                     "results": {}, "ser": ser, "browser": browser, "fake": fake}
-    return jsonify({"session_id": sid, "plan": sessions[sid]["plan"],
+    plan = build_plan(user["dominant"])
+    if not STATELESS:
+        sessions[sid] = {"stamp": stamp, "user": user, "plan": plan,
+                         "results": {}, "ser": ser, "browser": browser, "fake": fake}
+    return jsonify({"session_id": sid, "plan": plan, "stateless": STATELESS, "fake": fake,
                     "needs_tare": ser is not None or browser, "source": "browser" if browser else "server",
                     "rest_seconds": rest, "calibration_note": grip_test.calibration_note(fake)})
 
@@ -379,6 +393,84 @@ def finish(sid):
                     open_browser=False, home_url="/", calibration=grip_test.calibration_note(state["fake"]))
     sessions.pop(sid, None)                                      # finished: free the memory
     return jsonify({"report_url": f"/report/{stamp}"})
+
+
+@app.post("/api/simulate")
+def simulate_step():
+    """Generate one simulated trial curve for stateless serverless playback in the browser."""
+    body = request.get_json(force=True, silent=True) or {}
+    hand = str(body.get("hand", "")).lower()
+    test = str(body.get("test", "")).lower()
+    seconds = body.get("seconds")
+    if hand not in ("right", "left") or test not in ("max", "fatigue"):
+        return jsonify({"error": "Invalid trial request."}), 400
+    try:
+        duration = float(seconds)
+    except (TypeError, ValueError):
+        return jsonify({"error": "Invalid trial duration."}), 400
+    if not 1 <= duration <= 60:
+        return jsonify({"error": "Invalid trial duration."}), 400
+    lines = fake_data.make_lines(hand, test, duration)
+    return jsonify({"lines": lines, "rate_hz": fake_data.SAMPLE_RATE_HZ})
+
+
+@app.post("/api/analyse")
+def analyse_stateless():
+    """Stateless trial scoring for Vercel (both simulated and Web Serial uploads)."""
+    body = request.get_json(force=True, silent=True) or {}
+    step = body.get("step") or {}
+    hand = str(step.get("hand", "")).lower()
+    test = str(step.get("test", "")).lower()
+    trial_num = step.get("trial")
+    if hand not in ("right", "left") or test not in ("max", "fatigue") or not isinstance(trial_num, int):
+        return jsonify({"error": "Invalid trial metadata."}), 400
+    lines = body.get("lines")
+    if (not isinstance(lines, list) or len(lines) > MAX_UPLOAD_LINES
+            or not all(isinstance(x, str) and len(x) <= 120 for x in lines)):
+        return jsonify({"error": "The recording could not be read."}), 400
+
+    readings, skipped = lines_to_readings(lines)
+    event, payload, record = _score_trial({"hand": hand, "trial": trial_num, "test": test}, readings, skipped)
+    if event == "failed":
+        return jsonify({"error": payload["message"]}), 400
+    return jsonify({
+        **payload,
+        "trial": {
+            "hand": record["hand"],
+            "trial": record["trial"],
+            "test": record["test"],
+            "smooth": record["smooth"],
+            "metrics": record["metrics"],
+            "quality": record.get("quality"),
+        },
+    })
+
+
+@app.post("/api/report")
+def report_stateless():
+    """Render a self-contained HTML report with inline SVG charts (no server disk or session RAM)."""
+    body = request.get_json(force=True, silent=True) or {}
+    try:
+        user = read_user(body.get("user") or {})
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+
+    plan = build_plan(user["dominant"])
+    results = body.get("trials")
+    if not isinstance(results, list) or len(results) != len(plan):
+        return jsonify({"error": "Not every trial has been recorded yet."}), 400
+
+    fake = bool(body.get("fake", grip_test.USE_FAKE))
+    max_trials, fatigue = results[:-1], results[-1]
+    stamp = f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_{secrets.token_hex(4)}"
+    summary = grip_test.summarize(max_trials, fatigue)
+    result = assess(summary["overall_peak_kg"], user["age"], user["sex"])
+    html_text = render_report(
+        stamp, user, max_trials, is_fake=fake, fatigue=fatigue, summary=summary,
+        result=result, home_url="/", calibration=grip_test.calibration_note(fake),
+        inline_charts=True,
+    )
+    return jsonify({"html": html_text})
 
 
 if __name__ == "__main__":

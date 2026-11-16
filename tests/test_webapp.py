@@ -134,3 +134,25 @@ def test_full_web_test_with_firmware_format(client, monkeypatch):
     record_all(client, sid, r.get_json()["plan"])
     _, html = finish(client, sid)
     assert "Download PDF" in html
+
+
+def test_stateless_vercel_flow(client, monkeypatch):
+    monkeypatch.setattr(webapp, "STATELESS", True)
+    monkeypatch.setattr(webapp, "DEMO", True)
+    assert client.get("/api/config").get_json()["stateless"] is True
+    r = client.post("/api/start", json=USER)
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data["stateless"] is True
+    assert data["session_id"] not in webapp.sessions
+    trials = []
+    for step in data["plan"]:
+        sim = client.post("/api/simulate", json=step)
+        assert sim.status_code == 200
+        analysed = client.post("/api/analyse", json={"step": step, "lines": sim.get_json()["lines"]})
+        assert analysed.status_code == 200, analysed.get_json()
+        trials.append(analysed.get_json()["trial"])
+    rep = client.post("/api/report", json={"user": USER, "trials": trials, "fake": True})
+    assert rep.status_code == 200, rep.get_json()
+    html = rep.get_json()["html"]
+    assert "<svg" in html and "Download PDF" in html and "ID P01" in html
