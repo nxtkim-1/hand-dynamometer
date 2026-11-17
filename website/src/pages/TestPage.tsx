@@ -8,7 +8,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from "react"
 import { Link, useNavigate } from "react-router-dom";
 import { LiveChart, type Pt } from "../components/Charts";
 import { useDevice, useLiveForce } from "../components/DeviceContext";
-import { IconArrow, IconCheck, IconInfo, IconUsb, IconWarn, IconWave } from "../components/Icons";
+import { IconArrow, IconCheck, IconInfo, IconUsb, IconVolume, IconVolumeOff, IconWarn, IconWave } from "../components/Icons";
 import { serialSupported } from "../lib/device";
 import { linesToReadings, parseLine } from "../lib/parse";
 import {
@@ -26,8 +26,10 @@ import {
 } from "../lib/protocol";
 import { QUALITY_TEXT } from "../lib/quality";
 import { makeLines } from "../lib/simulator";
+import { cueCountdown, cueDone, cueGo, getSoundEnabled, setSoundEnabled } from "../lib/sound";
 import { calibrationFor, newSessionId, saveSession, type Session } from "../lib/storage";
 import type { DataSource, Participant, Step, TrialResult } from "../lib/types";
+import { formatForce, getStoredUnit, setStoredUnit, type ForceUnit } from "../lib/units";
 
 type Stage = "setup" | "participant" | "zero" | "trials" | "saving";
 type Phase = "ready" | "countdown" | "recording" | "analysing" | "result" | "resting" | "error";
@@ -54,6 +56,10 @@ export default function TestPage() {
   const [formError, setFormError] = useState("");
   const [zeroing, setZeroing] = useState(false);
   const [restLeft, setRestLeft] = useState(0);
+  const [soundOn, setSoundOn] = useState(getSoundEnabled);
+  const [unit, setUnit] = useState<ForceUnit>(getStoredUnit);
+  const soundRef = useRef(soundOn);
+  soundRef.current = soundOn;
 
   // live recording: points are kept in a ref (no re-render per sample); `tick` redraws once per frame
   const pointsRef = useRef<Pt[]>([]);
@@ -80,6 +86,17 @@ export default function TestPage() {
   const step = plan[index];
   const restSeconds = REST_SECONDS[source];
   const showCalibrationBanner = source === "device" && (device?.calibration ?? CALIBRATION) !== "measured";
+
+  function toggleSound() {
+    const next = !soundOn;
+    setSoundOn(next);
+    setSoundEnabled(next);
+  }
+
+  function changeUnit(next: ForceUnit) {
+    setUnit(next);
+    setStoredUnit(next);
+  }
 
   const queueFrame = useCallback((left: number) => {
     if (frameQueued.current) return;
@@ -157,15 +174,18 @@ export default function TestPage() {
     setPhase("countdown");
     for (const n of [3, 2, 1]) {
       setCount(n);
+      cueCountdown(soundRef.current);
       await sleep(1000);
       if (stale()) return;
     }
     setCount("go");
+    cueGo(soundRef.current);
     setTimeout(() => setCount(null), 700);
     setPhase("recording");
     try {
       const lines = source === "device" ? await recordDevice(step, stale) : await recordSimulated(step, stale);
       if (stale()) return;
+      cueDone(soundRef.current);
       setPhase("analysing");
       const { readings, skipped } = linesToReadings(lines);
       const result = scoreTrial(step, readings, skipped);
@@ -203,6 +223,7 @@ export default function TestPage() {
     });
     setLive({ force: 0, peak: 0, left: step.seconds });
     setTick((t) => t + 1);
+    setRestLeft(0);
     setPhase("ready");
   }
 
@@ -251,13 +272,13 @@ export default function TestPage() {
     }
   }
 
-  async function zeroDevice() {
+  async function zeroDevice(advanceToTrials = true) {
     if (!device) return;
     setZeroing(true);
     setError("");
     try {
       await device.tare();
-      setStage("trials");
+      if (advanceToTrials) setStage("trials");
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -265,12 +286,16 @@ export default function TestPage() {
     }
   }
 
-  // Enter presses the main button during the trials (like the terminal version)
+  // Enter or Space presses the main button during the trials (like the terminal version)
   useEffect(() => {
     if (stage !== "trials") return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Enter" || (e.target as HTMLElement).tagName === "BUTTON") return;
-      primaryRef.current?.click();
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === "BUTTON" || tag === "A" || tag === "INPUT" || tag === "TEXTAREA") return;
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        primaryRef.current?.click();
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -301,6 +326,7 @@ export default function TestPage() {
 
   if (stage === "setup") {
     const supported = serialSupported();
+    const liveVal = liveKg !== null ? Math.max(0, liveKg) : 0;
     return (
       <div className="container test-shell">
         <div className="page-head" style={{ paddingBottom: 8 }}>
@@ -345,12 +371,17 @@ export default function TestPage() {
               </button>
             )}
             {status === "connected" && (
-              <div className="live-meter">
-                <span className="tag ok">
-                  <IconCheck size={14} /> Connected
-                </span>
-                <span className="num">{fmt(liveKg)}</span>
-                <span className="muted small">kg · squeeze to check it responds</span>
+              <div style={{ display: "grid", gap: 8 }}>
+                <div className="live-meter">
+                  <span className="tag ok">
+                    <IconCheck size={14} /> Connected
+                  </span>
+                  <span className="num">{liveKg !== null ? formatForce(liveKg, unit) : "n/a"}</span>
+                  <span className="muted small">{unit} · squeeze to check it responds</span>
+                </div>
+                <div className="meter-bar" aria-hidden="true">
+                  <i style={{ width: `${Math.min(100, (liveVal / 50) * 100)}%` }} />
+                </div>
               </div>
             )}
             {message && status !== "connected" && (
@@ -483,6 +514,7 @@ export default function TestPage() {
   }
 
   if (stage === "zero") {
+    const liveVal = liveKg !== null ? Math.max(0, liveKg) : 0;
     return (
       <div className="container test-shell narrow">
         <div className="page-head" style={{ paddingBottom: 8 }}>
@@ -491,10 +523,15 @@ export default function TestPage() {
           <p className="lead">Put the dynamometer on the table and let go of it completely. Nothing may touch the handle while it zeroes.</p>
         </div>
         <div className="card card-pad" style={{ display: "grid", gap: 18 }}>
-          <div className="live-meter">
-            <span className="muted small">Reading now</span>
-            <span className="num">{device ? fmt(liveKg) : "–"}</span>
-            <span className="muted small">kg</span>
+          <div style={{ display: "grid", gap: 8 }}>
+            <div className="live-meter">
+              <span className="muted small">Reading now</span>
+              <span className="num">{device && liveKg !== null ? formatForce(liveKg, unit) : "–"}</span>
+              <span className="muted small">{unit}</span>
+            </div>
+            <div className="meter-bar" aria-hidden="true">
+              <i style={{ width: `${Math.min(100, (liveVal / 50) * 100)}%` }} />
+            </div>
           </div>
           {!device && (
             <div className="notice bad">
@@ -514,7 +551,7 @@ export default function TestPage() {
           )}
           {calibrationBanner}
           <div className="btn-row">
-            <button className="btn btn-primary btn-lg" disabled={!device || zeroing} onClick={zeroDevice}>
+            <button className="btn btn-primary btn-lg" disabled={!device || zeroing} onClick={() => void zeroDevice(true)}>
               {zeroing ? "Zeroing… hands off" : "Zero now"}
             </button>
             <button className="btn btn-ghost" onClick={() => setStage("participant")}>
@@ -549,24 +586,45 @@ export default function TestPage() {
 
   return (
     <div className="container test-shell">
-      <ol className="stepper" aria-label="Test progress">
-        {plan.map((s, i) => {
-          const r = results[i];
-          const state = i === index ? "current" : r ? (r.quality && r.quality !== "good" ? "flag" : "done") : "";
-          const fill = i === index && phase === "recording" ? `${(1 - live.left / s.seconds) * 100}%` : undefined;
-          return (
-            <li key={i} className={state} aria-current={i === index ? "step" : undefined}>
-              <span className="bar">
-                <i style={fill ? { width: fill } : r && i === index ? { width: "100%", background: "var(--ok)" } : undefined} />
-              </span>
-              <span className="lbl">
-                {stepLabel(s)}
-                {r ? ` · ${r.metrics.peak_kg.toFixed(1)}` : ""}
-              </span>
-            </li>
-          );
-        })}
-      </ol>
+      <div className="test-toolbar">
+        <ol className="stepper" aria-label="Test progress">
+          {plan.map((s, i) => {
+            const r = results[i];
+            const state = i === index ? "current" : r ? (r.quality && r.quality !== "good" ? "flag" : "done") : "";
+            const fill = i === index && phase === "recording" ? `${(1 - live.left / s.seconds) * 100}%` : undefined;
+            return (
+              <li key={i} className={state} aria-current={i === index ? "step" : undefined}>
+                <span className="bar">
+                  <i style={fill ? { width: fill } : r && i === index ? { width: "100%", background: "var(--ok)" } : undefined} />
+                </span>
+                <span className="lbl">
+                  {stepLabel(s)}
+                  {r ? ` · ${formatForce(r.metrics.peak_kg, unit)}` : ""}
+                </span>
+              </li>
+            );
+          })}
+        </ol>
+        <div className="btn-row" style={{ flex: "none" }}>
+          <div className="pill-tabs" role="group" aria-label="Force display unit">
+            {(["kg", "lb"] as ForceUnit[]).map((u) => (
+              <button key={u} type="button" className={`pill-tab${unit === u ? " active" : ""}`} onClick={() => changeUnit(u)}>
+                {u}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={toggleSound}
+            aria-pressed={soundOn}
+            title={soundOn ? "Mute countdown chimes" : "Enable countdown chimes"}
+          >
+            {soundOn ? <IconVolume size={16} /> : <IconVolumeOff size={16} />}
+            <span className="hide-sm">{soundOn ? "Sound on" : "Muted"}</span>
+          </button>
+        </div>
+      </div>
 
       <div className="trial-layout">
         <section className="card chart-card" aria-labelledby="trial-title">
@@ -588,6 +646,7 @@ export default function TestPage() {
               seconds={step.seconds}
               colorVar={colorVarFor(step)}
               ghosts={ghosts}
+              unit={unit}
               label={
                 result
                   ? `Force over time. Peak ${result.metrics.peak_kg.toFixed(1)} kg after ${result.metrics.time_to_peak_ms} ms.`
@@ -607,15 +666,15 @@ export default function TestPage() {
             <div className="readout wide">
               <span className="label">Force</span>
               <span className="value">
-                {live.force.toFixed(1)}
-                <small>kg</small>
+                {formatForce(live.force, unit)}
+                <small>{unit}</small>
               </span>
             </div>
             <div className="readout">
               <span className="label">Peak</span>
               <span className="value">
-                {live.peak.toFixed(1)}
-                <small>kg</small>
+                {formatForce(live.peak, unit)}
+                <small>{unit}</small>
               </span>
             </div>
             <div className="readout">
@@ -663,7 +722,9 @@ export default function TestPage() {
                 <div className="result-chips">
                   <div>
                     <span>Peak (filtered)</span>
-                    <b>{result.metrics.peak_kg.toFixed(1)} kg</b>
+                    <b>
+                      {formatForce(result.metrics.peak_kg, unit)} {unit}
+                    </b>
                   </div>
                   <div>
                     <span>Time to peak</span>
@@ -690,7 +751,7 @@ export default function TestPage() {
                     {flagged ? <IconWarn /> : <IconCheck />}
                     <div>
                       <b>{QUALITY_TEXT[result.quality].title}.</b> {QUALITY_TEXT[result.quality].why}
-                      {flagged && " You can repeat this trial after resting."}
+                      {flagged && " You can repeat this trial now or after resting."}
                     </div>
                   </div>
                 )}
@@ -723,9 +784,20 @@ export default function TestPage() {
                   Skip rest
                 </button>
               )}
-              {result && phase === "result" && (
+              {result && (phase === "result" || phase === "resting") && (
                 <button className={`btn btn-sm ${flagged ? "btn-secondary" : "btn-ghost"}`} onClick={repeatTrial}>
                   Repeat this trial
+                </button>
+              )}
+              {source === "device" && device && phase === "ready" && (
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  disabled={zeroing}
+                  onClick={() => void zeroDevice(false)}
+                  title="Put the dynamometer down, hands off, then click to re-zero"
+                >
+                  {zeroing ? "Zeroing…" : "Re-zero"}
                 </button>
               )}
               {!busy && (
@@ -737,7 +809,8 @@ export default function TestPage() {
           </div>
           {calibrationBanner}
           <p className="muted small">
-            Tip: press <span className="kbd">Enter</span> for the main button. <Link to="/how-it-works#protocol">Why this protocol?</Link>
+            Tip: press <span className="kbd">Enter</span> or <span className="kbd">Space</span> for the main button.{" "}
+            <Link to="/how-it-works#protocol">Why this protocol?</Link>
           </p>
         </aside>
       </div>

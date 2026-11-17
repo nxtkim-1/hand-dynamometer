@@ -1,8 +1,15 @@
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { IconWarn } from "../components/Icons";
+import { ForceChart } from "../components/Charts";
+import { IconRefresh, IconWarn } from "../components/Icons";
 import { REPO_URL } from "../components/Layout";
+import { filterReadings } from "../lib/filters";
+import { findOnset, trialMetrics } from "../lib/metrics";
 import { CUTOFFS, PEAK } from "../lib/norms";
-import { FATIGUE_SECONDS, MIN_RATE_HZ, TRIAL_SECONDS, TRIALS_PER_HAND } from "../lib/protocol";
+import { linesToReadings } from "../lib/parse";
+import { FATIGUE_SECONDS, fmt, MIN_RATE_HZ, TRIAL_SECONDS, TRIALS_PER_HAND } from "../lib/protocol";
+import { extractFeatures, QUALITY_TEXT, ruleCheck } from "../lib/quality";
+import { makeLines, type TrialKind } from "../lib/simulator";
 
 const SECTIONS = [
   ["chain", "Signal chain"],
@@ -171,55 +178,59 @@ export default function HowItWorksPage() {
       </section>
 
       <section className="doc-section" id="quality">
-        <div className="container two-col">
-          <div className="prose">
-            <h2 style={{ fontSize: "clamp(1.6rem, 3vw, 2.1rem)" }}>Trial check</h2>
-            <p>
-              A maximal squeeze has a typical shape: flat at zero, a fast rise, a steady hold. Four common faults change that shape, so each trial is
-              described by five numbers and checked against simple rules, in this order:
-            </p>
-            <p>
-              The Python version of the app can also use a Random Forest trained on 2,000 simulated curves (99 % test accuracy vs 92 % for the
-              rules). Because it was trained only on simulated data, that number shows the pipeline works, not how it does on real people. This site
-              uses the rules.
-            </p>
+        <div className="container">
+          <div className="two-col">
+            <div className="prose">
+              <h2 style={{ fontSize: "clamp(1.6rem, 3vw, 2.1rem)" }}>Trial check</h2>
+              <p>
+                A maximal squeeze has a typical shape: flat at zero, a fast rise, a steady hold. Four common faults change that shape, so each trial is
+                described by five numbers and checked against simple rules, in this order:
+              </p>
+              <p>
+                The Python version of the app can also use a Random Forest trained on 2,000 simulated curves (99 % test accuracy vs 92 % for the
+                rules). Because it was trained only on simulated data, that number shows the pipeline works, not how it does on real people. This site
+                uses the rules.
+              </p>
+            </div>
+            <div className="card table-wrap">
+              <table className="data">
+                <thead>
+                  <tr>
+                    <th>Flag</th>
+                    <th>Rule</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>False start</td>
+                    <td className="mono" style={{ whiteSpace: "normal" }}>
+                      mean force in first 300 ms &gt; 10 % of peak
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>Slip</td>
+                    <td className="mono" style={{ whiteSpace: "normal" }}>
+                      biggest dip during the hold &gt; 25 % of peak
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>Submaximal</td>
+                    <td className="mono" style={{ whiteSpace: "normal" }}>
+                      rise from 10 % to 90 % of peak &gt; 600 ms
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>Good</td>
+                    <td className="mono" style={{ whiteSpace: "normal" }}>
+                      none of the above
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
-          <div className="card table-wrap">
-            <table className="data">
-              <thead>
-                <tr>
-                  <th>Flag</th>
-                  <th>Rule</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>False start</td>
-                  <td className="mono" style={{ whiteSpace: "normal" }}>
-                    mean force in first 300 ms &gt; 10 % of peak
-                  </td>
-                </tr>
-                <tr>
-                  <td>Slip</td>
-                  <td className="mono" style={{ whiteSpace: "normal" }}>
-                    biggest dip during the hold &gt; 25 % of peak
-                  </td>
-                </tr>
-                <tr>
-                  <td>Submaximal</td>
-                  <td className="mono" style={{ whiteSpace: "normal" }}>
-                    rise from 10 % to 90 % of peak &gt; 600 ms
-                  </td>
-                </tr>
-                <tr>
-                  <td>Good</td>
-                  <td className="mono" style={{ whiteSpace: "normal" }}>
-                    none of the above
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+
+          <CurveExplorer />
         </div>
       </section>
 
@@ -335,7 +346,10 @@ export default function HowItWorksPage() {
             <Link className="btn btn-primary" to="/test">
               Run the test
             </Link>
-            <a className="btn btn-secondary" href={REPO_URL} target="_blank" rel="noreferrer">
+            <Link className="btn btn-secondary" to="/results/sample-demo">
+              View sample report
+            </Link>
+            <a className="btn btn-ghost" href={REPO_URL} target="_blank" rel="noreferrer">
               Read the source
             </a>
           </div>
@@ -344,3 +358,113 @@ export default function HowItWorksPage() {
     </>
   );
 }
+
+const DEMO_KINDS: { kind: TrialKind; label: string }[] = [
+  { kind: "good", label: "Good trial" },
+  { kind: "false_start", label: "False start" },
+  { kind: "slip", label: "Slip" },
+  { kind: "submaximal", label: "Submaximal" },
+];
+
+function CurveExplorer() {
+  const [kind, setKind] = useState<TrialKind>("good");
+  const [seed, setSeed] = useState(1);
+  const [showRaw, setShowRaw] = useState(true);
+  const [showRfd, setShowRfd] = useState(true);
+
+  const data = useMemo(() => {
+    const lines = makeLines("right", "max", 5, Math.random, kind);
+    const { readings } = linesToReadings(lines);
+    const smooth = filterReadings(readings);
+    const features = extractFeatures(smooth);
+    const verdict = ruleCheck(features);
+    const metrics = trialMetrics(smooth);
+    const onset = findOnset(smooth);
+    return { readings, smooth, features, verdict, metrics, onsetMs: onset.time_ms };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kind, seed]);
+
+  const series = [
+    ...(showRaw ? [{ name: "Raw", readings: data.readings, colorVar: "--trace-faint", width: 1.2, opacity: 0.75 }] : []),
+    { name: "Butterworth 10 Hz", readings: data.smooth, colorVar: data.verdict === "good" ? "--right" : "--left", width: 2.4, markPeak: true },
+  ];
+
+  return (
+    <div className="card card-pad explorer" style={{ marginTop: 28 }}>
+      <div className="box-head">
+        <div>
+          <span className="eyebrow">Interactive lab</span>
+          <h3 style={{ fontSize: "1.2rem", marginTop: 4 }}>Try the filter and quality rules</h3>
+        </div>
+        <div className="btn-row">
+          <div className="pill-tabs" role="group" aria-label="Simulated curve kind">
+            {DEMO_KINDS.map((item) => (
+              <button
+                key={item.kind}
+                type="button"
+                className={`pill-tab${kind === item.kind ? " active" : ""}`}
+                onClick={() => setKind(item.kind)}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => setSeed((s) => s + 1)}>
+            <IconRefresh size={15} /> New curve
+          </button>
+        </div>
+      </div>
+
+      <div className="explorer-grid">
+        <div>
+          <ForceChart
+            label={`Interactive ${kind} curve showing raw and filtered force over 5 seconds.`}
+            seconds={5}
+            height={230}
+            series={series}
+            rfdWindow={showRfd ? { onsetMs: data.onsetMs, windowMs: 200, colorVar: "--accent", label: "200 ms RFD" } : null}
+          />
+          <div className="btn-row" style={{ marginTop: 10 }}>
+            <label className="check small">
+              <input type="checkbox" checked={showRaw} onChange={(e) => setShowRaw(e.target.checked)} />
+              <span>Show raw 50 Hz signal</span>
+            </label>
+            <label className="check small">
+              <input type="checkbox" checked={showRfd} onChange={(e) => setShowRfd(e.target.checked)} />
+              <span>Highlight 200 ms RFD window</span>
+            </label>
+          </div>
+        </div>
+
+        <div className="explorer-side">
+          <div className={`notice ${data.verdict === "good" ? "ok" : "warn"}`}>
+            <div>
+              <b>{QUALITY_TEXT[data.verdict].title}.</b> {QUALITY_TEXT[data.verdict].why}
+            </div>
+          </div>
+          <dl className="kv">
+            <dt>Peak (filtered)</dt>
+            <dd>{data.metrics.peak_kg.toFixed(1)} kg</dd>
+            <dt>Time to peak</dt>
+            <dd>{data.metrics.time_to_peak_ms} ms</dd>
+            <dt>RFD (0–200 ms)</dt>
+            <dd>{fmt(data.metrics.rfd_n_per_s, 0)} N/s</dd>
+            <dt>First 300 ms mean (&gt;10 % flag)</dt>
+            <dd className={data.features.baseline_frac > 0.1 ? "flag-val" : undefined}>
+              {(data.features.baseline_frac * 100).toFixed(1)} %
+            </dd>
+            <dt>Hold dip (&gt;25 % flag)</dt>
+            <dd className={data.features.dip_frac > 0.25 ? "flag-val" : undefined}>
+              {(data.features.dip_frac * 100).toFixed(1)} %
+            </dd>
+            <dt>10→90 % rise (&gt;600 ms flag)</dt>
+            <dd className={data.features.rise_time_ms > 600 ? "flag-val" : undefined}>
+              {Math.round(data.features.rise_time_ms)} ms
+            </dd>
+          </dl>
+        </div>
+      </div>
+    </div>
+  );
+}
+
