@@ -1,9 +1,8 @@
 // Project overview: what GripCheck is, why it exists, what it does, how it is built, and its honest status.
 
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-
-const CadViewer = lazy(() => import("../components/CadViewer"));
+import CadViewer, { type CadDesignId } from "../components/CadViewer";
 import {
   IconArrow,
   IconChart,
@@ -59,11 +58,14 @@ export default function HomePage() {
 // ---------------------------------------------------------------- hero
 
 function Hero() {
+  const [heroMode, setHeroMode] = useState<"cad" | "curve">("cad");
+  const [heroDesign, setHeroDesign] = useState<CadDesignId>("v3");
+
   return (
     <section className="hero">
       <div className="container">
         <div>
-          <span className="eyebrow">Open-source grip dynamometer · v3</span>
+          <span className="eyebrow">Open-source grip dynamometer · v3 &amp; v4 concept</span>
           <h1>
             Grip strength, measured as a <em>whole curve</em>, not one number.
           </h1>
@@ -90,13 +92,65 @@ function Hero() {
               <IconWave size={16} /> Simulator for everyone else
             </span>
             <a href="#cad" style={{ display: "inline-flex", gap: 6, alignItems: "center", fontWeight: 600, color: "var(--accent)" }}>
-              Interactive 3D CAD <IconArrow size={14} />
+              Full parts inspector <IconArrow size={14} />
             </a>
           </div>
         </div>
-        <div className="hero-visual">
-          <img src="/images/compact_v3_assembled.png" alt="CAD render of the GripCheck v3 dynamometer: a black finger half and grey palm half on a compact electronics base" width={600} height={600} />
-          <HeroScope />
+        <div className="hero-visual hero-visual-cad">
+          <div className="hero-visual-bar">
+            {heroMode === "cad" ? (
+              <div className="pill-tabs" role="tablist" aria-label="Choose 3D CAD design">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={heroDesign === "v3"}
+                  className={`pill-tab${heroDesign === "v3" ? " active" : ""}`}
+                  onClick={() => setHeroDesign("v3")}
+                >
+                  v3 Split-Grip
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={heroDesign === "jamar"}
+                  className={`pill-tab${heroDesign === "jamar" ? " active" : ""}`}
+                  onClick={() => setHeroDesign("jamar")}
+                >
+                  v4 Jamar Prototype
+                </button>
+              </div>
+            ) : (
+              <span className="eyebrow">Simulated squeeze</span>
+            )}
+            <div className="pill-tabs" role="tablist" aria-label="Hero preview mode">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={heroMode === "cad"}
+                className={`pill-tab${heroMode === "cad" ? " active" : ""}`}
+                onClick={() => setHeroMode("cad")}
+              >
+                3D CAD
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={heroMode === "curve"}
+                className={`pill-tab${heroMode === "curve" ? " active" : ""}`}
+                onClick={() => setHeroMode("curve")}
+              >
+                Live curve
+              </button>
+            </div>
+          </div>
+
+          {heroMode === "cad" ? (
+            <CadViewer variant="hero" design={heroDesign} onDesignChange={setHeroDesign} />
+          ) : (
+            <div style={{ padding: "8px 4px 4px" }}>
+              <HeroScope />
+            </div>
+          )}
         </div>
       </div>
     </section>
@@ -375,16 +429,7 @@ function Device() {
         </div>
 
         <div id="cad" style={{ marginBottom: 28 }}>
-          <Suspense
-            fallback={
-              <div className="card cad-shell" style={{ padding: 48, display: "grid", placeItems: "center", gap: 12, minHeight: 460 }}>
-                <div className="spinner" aria-hidden="true" />
-                <span className="muted small">Loading 3D CAD viewer…</span>
-              </div>
-            }
-          >
-            <CadViewer />
-          </Suspense>
+          <CadViewer />
         </div>
 
         <div className="two-col">

@@ -48,13 +48,13 @@ const DESIGNS: Record<CadDesignId, DesignSpec> = {
       "Barrel handle split lengthwise by a 3 mm seam. The palm half and closed electronics base bolt to the bottom of the load cell; the finger half floats on the top end.",
     dimensions: "57 × 82 × 204 mm",
     center: [11, 0, 50],
-    camDist: 315,
+    camDist: 470,
     parts: [
       {
         id: "palm",
         label: "Palm half + base",
         role: "Fixed half · holds load cell bottom & electronics bay",
-        color: "#bfc4cc",
+        color: "#c5cad3",
         file: "/models/v3_palm.stl",
         isShell: true,
         explode: [-26, 0, 0],
@@ -63,7 +63,7 @@ const DESIGNS: Record<CadDesignId, DesignSpec> = {
         id: "finger",
         label: "Finger half",
         role: "Moving half · bolts to load cell top across 3 mm seam",
-        color: "#2a2e35",
+        color: "#3b424d",
         file: "/models/v3_finger.stl",
         isShell: true,
         explode: [38, 0, 14],
@@ -104,13 +104,13 @@ const DESIGNS: Record<CadDesignId, DesignSpec> = {
       "Clinical two-handle geometry with the same CZL601 cell mounted upright inside the side body. Adjust the palm bar across 5 lock positions without touching the force path.",
     dimensions: "181 × 82 × 201 mm",
     center: [-51, 0, 48],
-    camDist: 345,
+    camDist: 510,
     parts: [
       {
         id: "frame",
         label: "Main frame + arms",
         role: "Fixed body · holds cell bottom and 5 palm-bar bolt holes",
-        color: "#bfc4cc",
+        color: "#c5cad3",
         file: "/models/jamar_frame.stl",
         isShell: true,
         explode: [24, 0, 0],
@@ -128,7 +128,7 @@ const DESIGNS: Record<CadDesignId, DesignSpec> = {
         id: "finger_part",
         label: "Finger bar + bracket",
         role: "Moving handle · cantilevered from the top of the load cell",
-        color: "#2a2e35",
+        color: "#3b424d",
         file: "/models/jamar_finger.stl",
         isShell: true,
         explode: [-20, 0, 32],
@@ -154,24 +154,21 @@ const DESIGNS: Record<CadDesignId, DesignSpec> = {
   },
 };
 
-const stlCache = new Map<string, THREE.BufferGeometry>();
+const stlBufferCache = new Map<string, Promise<ArrayBuffer>>();
 
-function loadStl(url: string): Promise<THREE.BufferGeometry> {
-  const hit = stlCache.get(url);
-  if (hit) return Promise.resolve(hit);
-  return new Promise((resolve, reject) => {
-    const loader = new STLLoader();
-    loader.load(
-      url,
-      (geom) => {
-        geom.computeVertexNormals();
-        stlCache.set(url, geom);
-        resolve(geom);
-      },
-      undefined,
-      (err) => reject(err),
-    );
-  });
+async function loadStl(url: string): Promise<THREE.BufferGeometry> {
+  let req = stlBufferCache.get(url);
+  if (!req) {
+    req = fetch(url).then((res) => {
+      if (!res.ok) throw new Error(`Failed to fetch CAD mesh (${res.status}): ${url}`);
+      return res.arrayBuffer();
+    });
+    stlBufferCache.set(url, req);
+  }
+  const buf = await req;
+  const geom = new STLLoader().parse(buf);
+  geom.computeVertexNormals();
+  return geom;
 }
 
 /** Procedural CZL601 100 kg parallel-beam load cell (22 x 40 x 130 mm, x 0..22, y -20..20, z 0..130) with binocular cutout & cable stub. */
@@ -261,9 +258,22 @@ function buildElectronicsGroup(): THREE.Group {
   return g;
 }
 
-export function CadViewer() {
+export interface CadViewerProps {
+  variant?: "full" | "hero";
+  design?: CadDesignId;
+  onDesignChange?: (id: CadDesignId) => void;
+}
+
+export function CadViewer({ variant = "full", design: controlledDesign, onDesignChange }: CadViewerProps) {
+  const isHero = variant === "hero";
   const hostRef = useRef<HTMLDivElement>(null);
-  const [design, setDesign] = useState<CadDesignId>("v3");
+  const [internalDesign, setInternalDesign] = useState<CadDesignId>("v3");
+  const design = controlledDesign ?? internalDesign;
+  const setDesign = (id: CadDesignId) => {
+    if (controlledDesign === undefined) setInternalDesign(id);
+    onDesignChange?.(id);
+  };
+
   const [explode, setExplode] = useState(0); // 0..100
   const [xray, setXray] = useState(false);
   const [squeeze, setSqueeze] = useState(false);
@@ -271,7 +281,11 @@ export function CadViewer() {
   const [selectedPart, setSelectedPart] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [presetTick, setPresetTick] = useState<{ preset: ViewPreset; n: number }>({ preset: "iso", n: 0 });
+  const [presetTick, setPresetTick] = useState<{ preset: ViewPreset; n: number; keepRotate?: boolean }>({
+    preset: "iso",
+    n: 0,
+    keepRotate: true,
+  });
 
   // Live animation / parameter refs read inside the Three.js loop without re-creating the WebGL context
   const stateRef = useRef({ design, explode, xray, squeeze, jamarPos, selectedPart });
@@ -282,16 +296,18 @@ export function CadViewer() {
     controls: OrbitControls;
     parts: Map<string, { obj: THREE.Object3D; meta: PartMeta; basePos: THREE.Vector3; mats: THREE.MeshStandardMaterial[] }>;
     modelGroup: THREE.Group;
+    grid: THREE.GridHelper;
   } | null>(null);
 
   const spec = DESIGNS[design];
   const activePart = spec.parts.find((p) => p.id === selectedPart) ?? null;
 
-  // Apply camera preset
+  // Apply camera preset scaled to viewport aspect so tall/wide housings never crop
   useEffect(() => {
     const r = sceneRefs.current;
     if (!r) return;
-    const d = DESIGNS[design].camDist;
+    const aspectScale = r.camera.aspect < 1.05 ? 1.08 / Math.max(r.camera.aspect, 0.55) : 1;
+    const d = DESIGNS[design].camDist * aspectScale;
     const target = new THREE.Vector3(0, 0, 0);
     let pos: THREE.Vector3;
     switch (presetTick.preset) {
@@ -306,15 +322,19 @@ export function CadViewer() {
         break;
       case "iso":
       default:
-        pos = design === "v3" ? new THREE.Vector3(d * 0.68, d * 0.28, d * 0.68) : new THREE.Vector3(-d * 0.45, d * 0.3, d * 0.85);
+        pos =
+          design === "v3"
+            ? new THREE.Vector3(d * 0.62, d * 0.24, d * 0.74)
+            : new THREE.Vector3(-d * 0.44, d * 0.28, d * 0.85);
         break;
     }
+    if (!presetTick.keepRotate) r.controls.autoRotate = false;
     r.camera.position.copy(pos);
     r.controls.target.copy(target);
     r.controls.update();
   }, [design, presetTick]);
 
-  // Build scene & load active design STLs
+  // Build scene & WebGL renderer once per mount
   useEffect(() => {
     const host = hostRef.current;
     if (!host) return;
@@ -330,46 +350,49 @@ export function CadViewer() {
     }
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.type = THREE.PCFShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.05;
+    renderer.toneMappingExposure = 1.15;
     host.innerHTML = "";
     host.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(34, 1, 1, 3000);
+    const camera = new THREE.PerspectiveCamera(34, 1, 1, 3500);
 
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
-    controls.minDistance = 120;
-    controls.maxDistance = 850;
+    controls.minDistance = 140;
+    controls.maxDistance = 1100;
     controls.maxPolarAngle = Math.PI * 0.92;
+    controls.autoRotate = isHero && !reducedMotion;
+    controls.autoRotateSpeed = 1.0;
 
-    // Studio three-point lighting
-    const hemi = new THREE.HemisphereLight("#ffffff", "#5a6372", 1.15);
+    // Bright studio lighting so dark charcoal PETG retains crisp form in dark & light themes
+    const hemi = new THREE.HemisphereLight("#ffffff", "#667080", 1.35);
     scene.add(hemi);
-    const key = new THREE.DirectionalLight("#fffaf2", 1.45);
+    const key = new THREE.DirectionalLight("#fffaf2", 1.55);
     key.position.set(220, 320, 260);
     key.castShadow = true;
     key.shadow.mapSize.set(1024, 1024);
     key.shadow.camera.near = 50;
-    key.shadow.camera.far = 900;
+    key.shadow.camera.far = 950;
     key.shadow.camera.left = -180;
     key.shadow.camera.right = 180;
     key.shadow.camera.top = 180;
     key.shadow.camera.bottom = -180;
     scene.add(key);
-    const fill = new THREE.DirectionalLight("#c9d9ff", 0.65);
-    fill.position.set(-240, 120, -180);
+    const fill = new THREE.DirectionalLight("#cfe0ff", 0.9);
+    fill.position.set(-240, 140, -180);
     scene.add(fill);
-    const rim = new THREE.DirectionalLight("#ffffff", 0.55);
-    rim.position.set(0, -180, -240);
+    const rim = new THREE.DirectionalLight("#ffffff", 0.85);
+    rim.position.set(0, -160, -260);
     scene.add(rim);
 
-    // Subtle ground grid aligned below the models
-    const grid = new THREE.GridHelper(320, 16, "#8a929e", "#8a929e");
-    grid.position.y = -110;
+    // Subtle ground grid aligned cleanly below the centered model
+    const grid = new THREE.GridHelper(300, 15, "#8a929e", "#8a929e");
+    grid.position.y = -108;
     (grid.material as THREE.Material).transparent = true;
     (grid.material as THREE.Material).opacity = 0.16;
     scene.add(grid);
@@ -383,7 +406,7 @@ export function CadViewer() {
     worldPivot.add(modelGroup);
 
     const partsMap = new Map<string, { obj: THREE.Object3D; meta: PartMeta; basePos: THREE.Vector3; mats: THREE.MeshStandardMaterial[] }>();
-    sceneRefs.current = { camera, controls, parts: partsMap, modelGroup };
+    sceneRefs.current = { camera, controls, parts: partsMap, modelGroup, grid };
 
     const updateSize = () => {
       const w = host.clientWidth;
@@ -396,6 +419,22 @@ export function CadViewer() {
     updateSize();
     const ro = new ResizeObserver(updateSize);
     ro.observe(host);
+
+    // Track visibility so scrolled-off canvases don't spin GPU frames needlessly
+    let visible = true;
+    const io = new IntersectionObserver(
+      (entries) => {
+        visible = entries[0]?.isIntersecting ?? true;
+      },
+      { threshold: 0.01 },
+    );
+    io.observe(host);
+
+    // Pause auto-rotate as soon as the user grabs the model
+    const onControlStart = () => {
+      controls.autoRotate = false;
+    };
+    controls.addEventListener("start", onControlStart);
 
     // Raycaster for click-to-inspect part
     const raycaster = new THREE.Raycaster();
@@ -429,9 +468,12 @@ export function CadViewer() {
     const t0 = performance.now();
     const animate = (now: number) => {
       if (disposed) return;
+      raf = requestAnimationFrame(animate);
+      if (!visible) return;
+
       const st = stateRef.current;
       const expFrac = st.explode / 100;
-      const pulse = st.squeeze ? (0.5 - 0.5 * Math.cos(((now - t0) / 1000) * 3.1)) : 0;
+      const pulse = st.squeeze ? 0.5 - 0.5 * Math.cos(((now - t0) / 1000) * 3.1) : 0;
 
       for (const entry of partsMap.values()) {
         const { obj, meta, basePos, mats } = entry;
@@ -473,7 +515,6 @@ export function CadViewer() {
 
       controls.update();
       renderer.render(scene, camera);
-      raf = requestAnimationFrame(animate);
     };
     raf = requestAnimationFrame(animate);
 
@@ -481,6 +522,8 @@ export function CadViewer() {
       disposed = true;
       cancelAnimationFrame(raf);
       ro.disconnect();
+      io.disconnect();
+      controls.removeEventListener("start", onControlStart);
       renderer.domElement.removeEventListener("pointerdown", onDown);
       renderer.domElement.removeEventListener("pointerup", onUp);
       controls.dispose();
@@ -489,7 +532,7 @@ export function CadViewer() {
       renderer.dispose();
       sceneRefs.current = null;
     };
-  }, []);
+  }, [isHero]);
 
   // Load / swap meshes when `design` changes
   useEffect(() => {
@@ -550,15 +593,18 @@ export function CadViewer() {
             geom: await loadStl(meta.file!),
           })),
         );
-        if (cancelled) return;
+        if (cancelled) {
+          for (const { geom } of loaded) geom.dispose();
+          return;
+        }
 
         for (const { meta, geom } of loaded) {
           const mat = new THREE.MeshStandardMaterial({
             color: meta.color,
-            roughness: meta.id.includes("finger") ? 0.55 : 0.42,
+            roughness: meta.id.includes("finger") ? 0.5 : 0.4,
             metalness: 0.08,
           });
-          disposables.push(mat);
+          disposables.push(geom, mat);
           const mesh = new THREE.Mesh(geom, mat);
           mesh.castShadow = true;
           mesh.receiveShadow = true;
@@ -567,7 +613,7 @@ export function CadViewer() {
           r!.parts.set(meta.id, { obj: mesh, meta, basePos: mesh.position.clone(), mats: [mat] });
         }
         setLoading(false);
-        setPresetTick((p) => ({ preset: "iso", n: p.n + 1 }));
+        setPresetTick((p) => ({ preset: "iso", n: p.n + 1, keepRotate: true }));
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : "Could not load CAD meshes.");
@@ -584,6 +630,131 @@ export function CadViewer() {
 
   const jamarGapMm = JAMAR_GAPS[jamarPos];
   const jamarOuterSpanMm = jamarGapMm + 20 + 24; // PB_T (20) + finger bar depth (24)
+
+  const stageEl = (
+    <div className="cad-stage">
+      <div ref={hostRef} className="cad-canvas" aria-label={`Interactive 3D CAD model of ${spec.name}`} />
+
+      {loading && (
+        <div className="cad-overlay">
+          <div className="spinner" aria-hidden="true" />
+          <span className="muted small">Loading CAD geometry…</span>
+        </div>
+      )}
+      {error && (
+        <div className="cad-overlay">
+          <p className="error-text">{error}</p>
+        </div>
+      )}
+
+      <div className="cad-hud-top">
+        <div className="cad-views" role="group" aria-label="Camera views">
+          {(
+            [
+              ["iso", "3/4"],
+              ["side", "Side"],
+              ["front", "Front"],
+              ["top", "Top"],
+            ] as const
+          ).map(([preset, label]) => (
+            <button
+              key={preset}
+              type="button"
+              className="cad-chip"
+              onClick={() => setPresetTick((p) => ({ preset, n: p.n + 1 }))}
+            >
+              {label}
+            </button>
+          ))}
+          <button
+            type="button"
+            className="cad-chip"
+            onClick={() => {
+              setExplode(0);
+              setXray(false);
+              setSqueeze(false);
+              setSelectedPart(null);
+              setPresetTick((p) => ({ preset: "iso", n: p.n + 1, keepRotate: isHero }));
+            }}
+            title="Reset view & assembly"
+          >
+            <IconRefresh size={13} /> Reset
+          </button>
+        </div>
+      </div>
+
+      <div className="cad-hud-bottom">
+        <span className="muted small">
+          {isHero ? "Drag to orbit · Scroll to zoom · Click part" : "Drag to orbit · Scroll to zoom · Click any part to inspect"}
+        </span>
+        {activePart && (
+          <span className="tag accent">
+            {activePart.label}: {activePart.role}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+
+  if (isHero) {
+    return (
+      <div className="cad-hero-wrap">
+        {stageEl}
+        <div className="cad-hero-bar">
+          <div className="cad-hero-bar-row">
+            <label htmlFor="cad-hero-explode" className="small muted" style={{ whiteSpace: "nowrap" }}>
+              Explode <b className="mono">{explode}%</b>
+            </label>
+            <input
+              id="cad-hero-explode"
+              type="range"
+              min={0}
+              max={100}
+              value={explode}
+              onChange={(e) => setExplode(Number(e.target.value))}
+              className="cad-slider"
+              aria-label="Explode assembly"
+            />
+            <button
+              type="button"
+              className={`cad-chip-btn${xray ? " active" : ""}`}
+              aria-pressed={xray}
+              onClick={() => setXray((v) => !v)}
+            >
+              X-ray
+            </button>
+            <button
+              type="button"
+              className={`cad-chip-btn${squeeze ? " active" : ""}`}
+              aria-pressed={squeeze}
+              onClick={() => setSqueeze((v) => !v)}
+            >
+              {squeeze ? "Squeezing" : "Squeeze"}
+            </button>
+          </div>
+          {design === "jamar" && (
+            <div className="cad-hero-bar-row">
+              <span className="small muted">Jamar span:</span>
+              <div className="pill-tabs" role="group" aria-label="Jamar handle position">
+                {JAMAR_GAPS.map((gap, i) => (
+                  <button
+                    key={gap}
+                    type="button"
+                    className={`pill-tab${jamarPos === i ? " active" : ""}`}
+                    onClick={() => setJamarPos(i)}
+                    title={`Position ${i + 1}: ${gap} mm bar-to-bar gap`}
+                  >
+                    {i + 1}
+                  </button>
+                ))}
+              </div>
+              <span className="mono small muted">{jamarGapMm} mm gap</span>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="card cad-shell">
@@ -617,68 +788,7 @@ export function CadViewer() {
       </div>
 
       <div className="cad-body">
-        <div className="cad-stage">
-          <div ref={hostRef} className="cad-canvas" aria-label={`Interactive 3D CAD model of ${spec.name}`} />
-
-          {loading && (
-            <div className="cad-overlay">
-              <div className="spinner" aria-hidden="true" />
-              <span className="muted small">Loading CAD geometry…</span>
-            </div>
-          )}
-          {error && (
-            <div className="cad-overlay">
-              <p className="error-text">{error}</p>
-            </div>
-          )}
-
-          <div className="cad-hud-top">
-            <div className="cad-views" role="group" aria-label="Camera views">
-              {(
-                [
-                  ["iso", "3/4"],
-                  ["side", "Side"],
-                  ["front", "Front"],
-                  ["top", "Top"],
-                ] as const
-              ).map(([preset, label]) => (
-                <button
-                  key={preset}
-                  type="button"
-                  className="cad-chip"
-                  onClick={() => setPresetTick((p) => ({ preset, n: p.n + 1 }))}
-                >
-                  {label}
-                </button>
-              ))}
-              <button
-                type="button"
-                className="cad-chip"
-                onClick={() => {
-                  setExplode(0);
-                  setXray(false);
-                  setSqueeze(false);
-                  setSelectedPart(null);
-                  setPresetTick((p) => ({ preset: "iso", n: p.n + 1 }));
-                }}
-                title="Reset view & assembly"
-              >
-                <IconRefresh size={13} /> Reset
-              </button>
-            </div>
-          </div>
-
-          <div className="cad-hud-bottom">
-            <span className="muted small">
-              Drag to orbit · Scroll to zoom · Click any part to inspect
-            </span>
-            {activePart && (
-              <span className="tag accent">
-                {activePart.label}: {activePart.role}
-              </span>
-            )}
-          </div>
-        </div>
+        {stageEl}
 
         <aside className="cad-controls">
           <div className="cad-control-group">
