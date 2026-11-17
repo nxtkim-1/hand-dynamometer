@@ -1,15 +1,19 @@
 // One session's report. Everything is recomputed from the saved raw readings, so a report always
 // reflects the current analysis code. Print / Save as PDF uses the print stylesheet.
 
-import { Link, useLocation, useParams } from "react-router-dom";
+import { useState } from "react";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { CentileChart, ForceChart } from "../components/Charts";
-import { IconDownload, IconInfo, IconPrint, IconWarn } from "../components/Icons";
-import { rawCsv, summaryCsv, download } from "../lib/exporters";
-import { assess, normsFor } from "../lib/norms";
+import { IconCheck, IconCopy, IconDownload, IconInfo, IconPrint, IconWarn } from "../components/Icons";
+import { download, rawCsv, summaryCsv } from "../lib/exporters";
+import { findOnset } from "../lib/metrics";
+import { assess, CUTOFFS, normsFor } from "../lib/norms";
 import { CALIBRATION_NOTE, fmt, summarize } from "../lib/protocol";
 import { QUALITY_TEXT } from "../lib/quality";
-import { getSession, type Session } from "../lib/storage";
+import { buildSampleSession, SAMPLE_SESSION_ID } from "../lib/sampleSession";
+import { getSession, newSessionId, saveSession, updateSessionNotes, type Session } from "../lib/storage";
 import type { Hand } from "../lib/types";
+import { convertKg, formatForce, getStoredUnit, setStoredUnit, type ForceUnit } from "../lib/units";
 
 const cap = (s: string) => s[0].toUpperCase() + s.slice(1);
 
@@ -17,7 +21,10 @@ export default function ReportPage() {
   const { id } = useParams();
   const location = useLocation();
   const state = location.state as { session?: Session; saved?: boolean } | null;
-  const session = (state?.session?.id === id ? state?.session : null) ?? (id ? getSession(id) : null);
+  const isDemo = id === SAMPLE_SESSION_ID;
+  const session = isDemo
+    ? buildSampleSession()
+    : (state?.session?.id === id ? state?.session : null) ?? (id ? getSession(id) : null);
 
   if (!session) {
     return (
@@ -29,7 +36,10 @@ export default function ReportPage() {
             <Link className="btn btn-primary" to="/test">
               Start a test
             </Link>
-            <Link className="btn btn-secondary" to="/results">
+            <Link className="btn btn-secondary" to="/results/sample-demo">
+              View sample report
+            </Link>
+            <Link className="btn btn-ghost" to="/results">
               All results
             </Link>
           </div>
@@ -37,10 +47,18 @@ export default function ReportPage() {
       </div>
     );
   }
-  return <Report session={session} notSaved={state?.saved === false} />;
+  return <Report key={session.id} session={session} notSaved={!isDemo && state?.saved === false} isDemo={isDemo} />;
 }
 
-function Report({ session, notSaved }: { session: Session; notSaved: boolean }) {
+function Report({ session, notSaved, isDemo }: { session: Session; notSaved: boolean; isDemo: boolean }) {
+  const navigate = useNavigate();
+  const [unit, setUnit] = useState<ForceUnit>(getStoredUnit);
+  const [showRawBest, setShowRawBest] = useState(false);
+  const [showRfdBest, setShowRfdBest] = useState(true);
+  const [copied, setCopied] = useState(false);
+  const [notes, setNotes] = useState(session.notes ?? "");
+  const [notesSaved, setNotesSaved] = useState(false);
+
   const p = session.participant;
   const sum = summarize(session.trials);
   const a = assess(sum.overall_peak_kg, p.age, p.sex);
@@ -55,11 +73,54 @@ function Report({ session, notSaved }: { session: Session; notSaved: boolean }) 
   const applicableCutoffs = Object.entries(a.cutoffs).filter(([, c]) => c.applies);
   const rate = Math.round(session.trials.reduce((s, t) => s + t.rate_hz, 0) / session.trials.length);
 
+  const strongerTrial = sum[sum.stronger];
+  const strongerOnsetMs = findOnset(strongerTrial.smooth).time_ms;
+
+  function changeUnit(next: ForceUnit) {
+    setUnit(next);
+    setStoredUnit(next);
+  }
+
+  function saveNotes() {
+    if (isDemo) return;
+    if (updateSessionNotes(session.id, notes)) {
+      setNotesSaved(true);
+      setTimeout(() => setNotesSaved(false), 1800);
+    }
+  }
+
+  function saveDemoCopy() {
+    const copy: Session = { ...buildSampleSession(newSessionId()), created: new Date().toISOString() };
+    const saved = saveSession(copy);
+    navigate(`/results/${copy.id}`, { state: { session: copy, saved } });
+  }
+
+  async function copySummary() {
+    const lines = [
+      `GripCheck Report — ${p.participant_id ? `Participant ${p.participant_id}` : "Grip test"} (${dateText})`,
+      `Profile: ${cap(p.sex)}, ${p.age} y, ${cap(p.dominant)}-handed · Source: ${session.source === "device" ? "Dynamometer" : "Simulated"}`,
+      `Best grip (${sum.stronger}): ${sum.overall_peak_kg.toFixed(1)} kg (${convertKg(sum.overall_peak_kg, "lb").toFixed(1)} lb)`,
+      `Norms (Dodds et al. 2014): ~${a.percentile.toFixed(0)}th percentile (${a.band}), Z = ${a.z.toFixed(2)}, T = ${a.t.toFixed(2)}`,
+      `Right peak: ${sum.right.metrics.peak_kg.toFixed(1)} kg · Left peak: ${sum.left.metrics.peak_kg.toFixed(1)} kg · L/R ratio: ${fmt(sum.ratio, 2)}`,
+      fatigue ? `30 s fatigue index (${fatigue.step.hand}): ${fmt(fatigue.metrics.fatigue_index_pct)} %` : null,
+      notes.trim() ? `Notes: ${notes.trim()}` : null,
+    ]
+      .filter(Boolean)
+      .join("\n");
+    try {
+      await navigator.clipboard.writeText(lines);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      /* clipboard blocked */
+    }
+  }
+
   return (
     <div className="container">
       <header className="report-head">
         <div>
-          <span className="eyebrow">Grip test report</span>
+          <span className="eyebrow">{isDemo ? "Sample grip test report" : "Grip test report"}</span>
           <h1>{p.participant_id ? `Participant ${p.participant_id}` : "Grip strength results"}</h1>
           <div className="meta">
             <span className="tag">{dateText}</span>
@@ -74,8 +135,18 @@ function Report({ session, notSaved }: { session: Session; notSaved: boolean }) 
           </div>
         </div>
         <div className="btn-row no-print">
+          <div className="pill-tabs" role="group" aria-label="Force display unit">
+            {(["kg", "lb"] as ForceUnit[]).map((u) => (
+              <button key={u} type="button" className={`pill-tab${unit === u ? " active" : ""}`} onClick={() => changeUnit(u)}>
+                {u}
+              </button>
+            ))}
+          </div>
           <button className="btn btn-primary" onClick={() => window.print()}>
-            <IconPrint /> Print / save PDF
+            <IconPrint /> Print / PDF
+          </button>
+          <button className="btn btn-secondary" onClick={() => void copySummary()}>
+            {copied ? <IconCheck /> : <IconCopy />} {copied ? "Copied" : "Copy"}
           </button>
           <button className="btn btn-secondary" onClick={() => download(`${fileStem}_summary.csv`, summaryCsv(session))}>
             <IconDownload /> Summary CSV
@@ -87,6 +158,24 @@ function Report({ session, notSaved }: { session: Session; notSaved: boolean }) 
       </header>
 
       <div style={{ display: "grid", gap: 12, marginBottom: 16 }}>
+        {isDemo && (
+          <div className="notice ok no-print" style={{ justifyContent: "space-between", alignItems: "center", flexWrap: "wrap" }}>
+            <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+              <IconInfo />
+              <div>
+                <b>Sample simulated report.</b> Explore the interactive curves, percentile bands, and quality flags (notice R2 was flagged as a slip).
+              </div>
+            </div>
+            <div className="btn-row">
+              <button type="button" className="btn btn-secondary btn-sm" onClick={saveDemoCopy}>
+                Save copy to Results
+              </button>
+              <Link className="btn btn-primary btn-sm" to="/test">
+                Run your own test
+              </Link>
+            </div>
+          </div>
+        )}
         {notSaved && (
           <div className="notice warn no-print">
             <IconWarn />
@@ -96,7 +185,7 @@ function Report({ session, notSaved }: { session: Session; notSaved: boolean }) 
             </div>
           </div>
         )}
-        {session.source === "simulated" && (
+        {session.source === "simulated" && !isDemo && (
           <div className="notice">
             <IconInfo />
             <div>
@@ -129,10 +218,15 @@ function Report({ session, notSaved }: { session: Session; notSaved: boolean }) 
               Best grip · {sum.stronger} hand
             </span>
             <div className="big">
-              {sum.overall_peak_kg.toFixed(1)}
-              <small>kg</small>
+              {formatForce(sum.overall_peak_kg, unit)}
+              <small>{unit}</small>
             </div>
-            <p className="muted small">Highest of six maximal squeezes (filtered), the value the norms are based on.</p>
+            <p className="muted small">
+              {unit === "kg"
+                ? `${convertKg(sum.overall_peak_kg, "lb").toFixed(1)} lb · `
+                : `${sum.overall_peak_kg.toFixed(1)} kg · `}
+              Highest of six maximal squeezes (filtered), the value the norms are based on.
+            </p>
           </div>
           <div className="percentile-bar">
             <div className="percentile-track" role="img" aria-label={`About the ${a.percentile.toFixed(0)}th percentile`}>
@@ -159,7 +253,7 @@ function Report({ session, notSaved }: { session: Session; notSaved: boolean }) 
             <dd>{a.t.toFixed(2)}</dd>
             <dt>Reference group</dt>
             <dd>
-              {p.sex}, age {a.ref_age} · median {a.median} kg
+              {p.sex}, age {a.ref_age} · median {formatForce(a.median, unit)} {unit}
             </dd>
           </dl>
           {applicableCutoffs.length > 0 && (
@@ -178,9 +272,16 @@ function Report({ session, notSaved }: { session: Session; notSaved: boolean }) 
         <section className="card box span-7" aria-labelledby="h-centile">
           <div className="box-head">
             <h2 id="h-centile">Compared with {p.sex === "male" ? "men" : "women"} of all ages</h2>
-            <span className="muted small">Dodds et al. 2014</span>
+            <span className="muted small">Dodds et al. 2014 · hover to inspect ages</span>
           </div>
-          <CentileChart rows={normsFor(p.sex)} age={p.age} force={sum.overall_peak_kg} sexLabel={p.sex === "male" ? "men" : "women"} />
+          <CentileChart
+            rows={normsFor(p.sex)}
+            age={p.age}
+            force={sum.overall_peak_kg}
+            sexLabel={p.sex === "male" ? "men" : "women"}
+            unit={unit}
+            cutoffKg={CUTOFFS.EWGSOP2[p.sex]}
+          />
           <div className="legend">
             <span>
               <i style={{ background: "var(--band-outer)" }} /> 10th–90th centile
@@ -210,7 +311,9 @@ function Report({ session, notSaved }: { session: Session; notSaved: boolean }) 
                       <span className={`hand-dot ${h}`} /> {cap(h)}
                       {p.dominant === h ? " (dominant)" : ""}
                     </span>
-                    <span className="mono">{m.peak_kg.toFixed(1)} kg</span>
+                    <span className="mono">
+                      {formatForce(m.peak_kg, unit)} {unit}
+                    </span>
                   </div>
                   <div className="track">
                     <i style={{ width: `${(m.peak_kg / handMax) * 100}%` }} />
@@ -249,11 +352,29 @@ function Report({ session, notSaved }: { session: Session; notSaved: boolean }) 
           <ForceChart
             label={`Force-time curves of the best right (${sum.right.metrics.peak_kg.toFixed(1)} kg) and left (${sum.left.metrics.peak_kg.toFixed(1)} kg) squeezes.`}
             seconds={5}
+            unit={unit}
+            rfdWindow={showRfdBest ? { onsetMs: strongerOnsetMs, windowMs: 200, colorVar: `--${sum.stronger}`, label: "200 ms RFD" } : null}
             series={[
-              { readings: sum.right.smooth, colorVar: "--right", markPeak: true, width: 2.4 },
-              { readings: sum.left.smooth, colorVar: "--left", markPeak: true, width: 2.4 },
+              ...(showRawBest
+                ? [
+                    { name: "Right (raw)", readings: sum.right.readings, colorVar: "--right", width: 1, opacity: 0.28, hoverable: false },
+                    { name: "Left (raw)", readings: sum.left.readings, colorVar: "--left", width: 1, opacity: 0.28, hoverable: false },
+                  ]
+                : []),
+              { name: "Right", readings: sum.right.smooth, colorVar: "--right", markPeak: true, width: 2.4 },
+              { name: "Left", readings: sum.left.smooth, colorVar: "--left", markPeak: true, width: 2.4 },
             ]}
           />
+          <div className="btn-row no-print">
+            <label className="check small">
+              <input type="checkbox" checked={showRawBest} onChange={(e) => setShowRawBest(e.target.checked)} />
+              <span>Overlay raw signal</span>
+            </label>
+            <label className="check small">
+              <input type="checkbox" checked={showRfdBest} onChange={(e) => setShowRfdBest(e.target.checked)} />
+              <span>Show 200 ms RFD window</span>
+            </label>
+          </div>
           <dl className="kv">
             <dt>Time to peak (R / L)</dt>
             <dd>
@@ -280,7 +401,8 @@ function Report({ session, notSaved }: { session: Session; notSaved: boolean }) 
               seconds={32}
               height={220}
               width={1000}
-              series={[{ readings: fatigue.smooth, colorVar: "--fatigue", markPeak: true, area: true, width: 2.2 }]}
+              unit={unit}
+              series={[{ name: "Hold", readings: fatigue.smooth, colorVar: "--fatigue", markPeak: true, area: true, width: 2.2 }]}
             />
             <p className="muted small">
               Fatigue index = drop from the peak to the average of the final second of the 30 s squeeze, as a percentage of the peak.
@@ -304,7 +426,7 @@ function Report({ session, notSaved }: { session: Session; notSaved: boolean }) 
                 <tr>
                   <th>Trial</th>
                   <th>Hand</th>
-                  <th className="num">Peak kg</th>
+                  <th className="num">Peak {unit}</th>
                   <th className="num">Time to peak ms</th>
                   <th className="num">RFD N/s</th>
                   <th>Quality</th>
@@ -320,7 +442,7 @@ function Report({ session, notSaved }: { session: Session; notSaved: boolean }) 
                         <span className={`hand-dot ${t.step.test === "fatigue" ? "fatigue" : t.step.hand}`} /> {cap(t.step.hand)}
                       </td>
                       <td className="num mono">
-                        {t.metrics.peak_kg.toFixed(1)}
+                        {formatForce(t.metrics.peak_kg, unit)}
                         {best ? " ★" : ""}
                       </td>
                       <td className="num mono">{t.metrics.time_to_peak_ms}</td>
@@ -345,13 +467,16 @@ function Report({ session, notSaved }: { session: Session; notSaved: boolean }) 
                   <span>
                     <span className={`hand-dot ${t.step.hand}`} /> {cap(t.step.hand)} {t.step.trial}
                   </span>
-                  <span className="mono">{t.metrics.peak_kg.toFixed(1)} kg</span>
+                  <span className="mono">
+                    {formatForce(t.metrics.peak_kg, unit)} {unit}
+                  </span>
                 </div>
                 <ForceChart
                   compact
                   height={120}
                   width={320}
                   seconds={5}
+                  unit={unit}
                   yMax={Math.max(20, Math.ceil((handMax * 1.15) / 10) * 10)}
                   label={`${cap(t.step.hand)} hand trial ${t.step.trial}, peak ${t.metrics.peak_kg.toFixed(1)} kg`}
                   series={[
@@ -364,6 +489,36 @@ function Report({ session, notSaved }: { session: Session; notSaved: boolean }) 
           </div>
           <p className="muted small">★ best trial per hand. Thin grey line: raw signal. Coloured line: filtered (4th-order Butterworth, zero phase).</p>
         </section>
+
+        {(!isDemo || notes.trim()) && (
+          <section className={`card box span-12${!notes.trim() ? " no-print" : ""}`} aria-labelledby="h-notes">
+            <div className="box-head">
+              <h2 id="h-notes">Session notes</h2>
+              {notesSaved && <span className="tag ok">Saved</span>}
+            </div>
+            {isDemo ? (
+              <p className="muted small">{notes}</p>
+            ) : (
+              <div style={{ display: "grid", gap: 10 }}>
+                <textarea
+                  className="input"
+                  rows={2}
+                  placeholder="Optional notes (e.g. handle setting, warm-up, posture observations)..."
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  onBlur={saveNotes}
+                  style={{ resize: "vertical", minHeight: 72 }}
+                />
+                <div className="btn-row no-print">
+                  <button type="button" className="btn btn-secondary btn-sm" onClick={saveNotes}>
+                    Save note
+                  </button>
+                  <span className="muted small">Stored only in this browser and included when printing.</span>
+                </div>
+              </div>
+            )}
+          </section>
+        )}
       </div>
 
       <p className="muted small" style={{ marginTop: 24, maxWidth: "80ch" }}>

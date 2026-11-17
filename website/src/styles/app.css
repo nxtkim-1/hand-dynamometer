@@ -49,7 +49,7 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #0c0e11;
     --bg-2: #13161a;
     --surface: #15181d;
@@ -84,6 +84,42 @@
     --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 28px rgb(0 0 0 / 0.35);
     color-scheme: dark;
   }
+}
+
+:root[data-theme="dark"] {
+  --bg: #0c0e11;
+  --bg-2: #13161a;
+  --surface: #15181d;
+  --surface-2: #1b1f25;
+  --ink: #eef0f3;
+  --ink-2: #c3c8d0;
+  --muted: #949ba6;
+  --rule: #262b33;
+  --rule-strong: #353b45;
+
+  --accent: #7d93ff;
+  --accent-hover: #98a9ff;
+  --accent-ink: #0c0e11;
+  --accent-soft: #1d2445;
+  --accent-deep: #b3c0ff;
+
+  --right: #7d93ff;
+  --left: #ff8a57;
+  --fatigue: #3ccf91;
+  --trace-faint: #5d646e;
+
+  --ok: #5ad69b;
+  --ok-bg: #12291f;
+  --warn: #ffc56b;
+  --warn-bg: #2b2112;
+  --warn-rule: #6b4d17;
+  --bad: #ff8a80;
+  --bad-bg: #331614;
+
+  --band-outer: #1b1f2a;
+  --band-inner: #252c40;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 28px rgb(0 0 0 / 0.35);
+  color-scheme: dark;
 }
 
 *,
@@ -228,6 +264,11 @@ p {
   color: var(--ink);
   background: var(--bg-2);
 }
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 .device-pill {
   display: inline-flex;
   align-items: center;
@@ -239,6 +280,11 @@ p {
   border: 1px solid var(--rule-strong);
   color: var(--ink-2);
   white-space: nowrap;
+  text-decoration: none;
+}
+.device-pill:hover {
+  border-color: var(--ink-2);
+  color: var(--ink);
 }
 .device-pill .dot {
   width: 8px;
@@ -254,6 +300,12 @@ p {
 .device-pill.on .dot {
   background: var(--ok);
   box-shadow: 0 0 0 3px color-mix(in oklab, var(--ok) 25%, transparent);
+}
+.btn.icon-btn {
+  min-height: 36px;
+  width: 36px;
+  padding: 0;
+  border-radius: 9px;
 }
 .btn.menu-btn {
   display: none;
@@ -581,25 +633,48 @@ p {
   mix-blend-mode: multiply;
 }
 @media (prefers-color-scheme: dark) {
-  .hero-visual img,
-  .figure img.render {
+  :root:not([data-theme="light"]) .hero-visual img,
+  :root:not([data-theme="light"]) .figure img.render {
     mix-blend-mode: normal;
-    background: #e9eaec;
+    background: radial-gradient(circle at 50% 45%, #f1f2f5 0%, #dfe2e8 100%);
     border-radius: 14px;
+    padding: 8px;
   }
+}
+:root[data-theme="dark"] .hero-visual img,
+:root[data-theme="dark"] .figure img.render {
+  mix-blend-mode: normal;
+  background: radial-gradient(circle at 50% 45%, #f1f2f5 0%, #dfe2e8 100%);
+  border-radius: 14px;
+  padding: 8px;
 }
 .scope {
   background: var(--bg);
   border: 1px solid var(--rule);
   border-radius: 14px;
-  padding: 14px 14px 10px;
+  padding: 14px 14px 12px;
   align-self: center;
 }
 .scope-head {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
+  align-items: center;
   gap: 8px;
+}
+.scope-replay {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  border: 1px solid var(--rule-strong);
+  background: var(--surface);
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.scope-replay:hover {
+  color: var(--ink);
+  border-color: var(--ink-2);
 }
 .scope-value {
   font-family: var(--mono);
@@ -613,10 +688,45 @@ p {
   color: var(--muted);
   margin-left: 4px;
 }
+.scope-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 6px;
+  font-size: 0.78rem;
+}
 .scope svg {
   width: 100%;
   height: auto;
-  margin-top: 10px;
+  margin-top: 8px;
+}
+.scope-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--rule);
+}
+.scope-pill {
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--rule);
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+}
+.scope-pill:hover {
+  color: var(--ink);
+  border-color: var(--rule-strong);
+}
+.scope-pill.active {
+  background: var(--accent-soft);
+  border-color: color-mix(in oklab, var(--accent) 40%, transparent);
+  color: var(--accent-deep);
 }
 
 /* ---------- home: stats, features ---------- */
@@ -1691,8 +1801,344 @@ table.data tr.best td {
   font-size: 0.93rem;
 }
 
+/* ---------- interactive additions ---------- */
+.pill-tabs {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 10px;
+  background: var(--bg-2);
+  border: 1px solid var(--rule);
+}
+.pill-tab {
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 5px 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.pill-tab:hover {
+  color: var(--ink);
+}
+.pill-tab.active {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.1);
+}
+
+.chart-wrap {
+  position: relative;
+}
+.chart-svg.interactive {
+  cursor: crosshair;
+  touch-action: pan-y;
+}
+.chart-tooltip {
+  position: absolute;
+  top: 6px;
+  transform: translateX(-50%);
+  pointer-events: none;
+  z-index: 5;
+  display: grid;
+  gap: 2px;
+  padding: 7px 10px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in oklab, var(--surface) 94%, transparent);
+  border: 1px solid var(--rule-strong);
+  box-shadow: var(--shadow);
+  font-size: 0.76rem;
+  white-space: nowrap;
+}
+.chart-tooltip span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.chart-tooltip .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.explorer {
+  display: grid;
+  gap: 18px;
+}
+.explorer-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 0.9fr);
+  gap: 24px;
+  align-items: start;
+}
+.explorer-side {
+  display: grid;
+  gap: 12px;
+}
+.flag-val {
+  color: var(--warn);
+  font-weight: 700;
+}
+
+.filter-bar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.filter-bar .input {
+  flex: 1 1 240px;
+  min-height: 40px;
+  padding: 7px 12px;
+}
+
+.test-toolbar {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+.test-toolbar .stepper {
+  flex: 1;
+  min-width: 0;
+}
+.meter-bar {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--bg-2);
+  border: 1px solid var(--rule);
+  overflow: hidden;
+}
+.meter-bar i {
+  display: block;
+  height: 100%;
+  background: var(--ok);
+  transition: width 100ms linear;
+}
+
+/* ---------- 3D CAD viewer ---------- */
+.cad-shell {
+  overflow: hidden;
+  display: grid;
+}
+.cad-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 18px;
+  flex-wrap: wrap;
+  padding: 20px 22px;
+  border-bottom: 1px solid var(--rule);
+  background: var(--surface);
+}
+.cad-head h3 {
+  font-size: 1.25rem;
+}
+.cad-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(300px, 0.9fr);
+  min-height: 520px;
+}
+.cad-stage {
+  position: relative;
+  min-height: 460px;
+  background:
+    radial-gradient(110% 85% at 50% 35%, color-mix(in oklab, var(--accent-soft) 55%, var(--surface)) 0%, var(--bg-2) 100%);
+  border-right: 1px solid var(--rule);
+  overflow: hidden;
+}
+.cad-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+  touch-action: none;
+}
+.cad-canvas:active {
+  cursor: grabbing;
+}
+.cad-overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 10px;
+  background: color-mix(in oklab, var(--surface) 78%, transparent);
+  backdrop-filter: blur(4px);
+  z-index: 4;
+  padding: 24px;
+  text-align: center;
+}
+.cad-hud-top {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  display: flex;
+  justify-content: flex-start;
+  pointer-events: none;
+  z-index: 2;
+}
+.cad-views {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 10px;
+  background: color-mix(in oklab, var(--surface) 88%, transparent);
+  border: 1px solid var(--rule);
+  backdrop-filter: blur(8px);
+  pointer-events: auto;
+}
+.cad-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 5px 9px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.cad-chip:hover {
+  background: var(--bg-2);
+  color: var(--ink);
+}
+.cad-hud-bottom {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  pointer-events: none;
+  z-index: 2;
+}
+.cad-hud-bottom > * {
+  background: color-mix(in oklab, var(--surface) 86%, transparent);
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--rule);
+  backdrop-filter: blur(6px);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cad-controls {
+  padding: 18px 20px;
+  display: grid;
+  gap: 18px;
+  align-content: start;
+  background: var(--surface-2);
+}
+.cad-control-group {
+  display: grid;
+  gap: 8px;
+}
+.cad-control-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 0.9rem;
+}
+.cad-slider {
+  width: 100%;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.cad-toggles {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.cad-parts {
+  display: grid;
+  gap: 8px;
+  border-top: 1px solid var(--rule);
+  padding-top: 14px;
+}
+.cad-parts ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.cad-part-btn {
+  width: 100%;
+  text-align: left;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--rule);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+  transition:
+    border-color 120ms var(--ease),
+    background-color 120ms var(--ease);
+}
+.cad-part-btn:hover {
+  border-color: var(--rule-strong);
+}
+.cad-part-btn.active {
+  border-color: var(--accent);
+  background: color-mix(in oklab, var(--accent-soft) 50%, var(--surface));
+}
+.cad-part-btn .swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  border: 1px solid rgb(0 0 0 / 0.18);
+  flex: none;
+  margin-top: 4px;
+}
+.cad-part-btn span:last-child {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+.cad-part-btn b {
+  font-size: 0.88rem;
+  line-height: 1.25;
+}
+.cad-part-btn small {
+  font-size: 0.78rem;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
 /* ---------- responsive ---------- */
 @media (max-width: 1000px) {
+  .cad-body {
+    grid-template-columns: minmax(0, 1fr);
+    min-height: 0;
+  }
+  .cad-stage {
+    border-right: 0;
+    border-bottom: 1px solid var(--rule);
+    min-height: 380px;
+  }
+  .explorer-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
   .hero .container,
   .two-col {
     grid-template-columns: minmax(0, 1fr);
@@ -1762,9 +2208,18 @@ table.data tr.best td {
   }
   .btn.menu-btn {
     display: inline-flex;
+  }
+  .header-actions {
     margin-left: auto;
   }
   .site-header .device-pill {
+    display: none;
+  }
+  .test-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .hide-sm {
     display: none;
   }
   .hero-visual {
@@ -1817,6 +2272,20 @@ table.data tr.best td {
   .stepper .lbl {
     font-size: 0.66rem;
   }
+  .cad-head {
+    padding: 16px;
+  }
+  .cad-head .pill-tabs {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+  .cad-head .pill-tab {
+    flex: 1 1 auto;
+    text-align: center;
+  }
+  .cad-stage {
+    min-height: 320px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1831,7 +2300,8 @@ table.data tr.best td {
 
 /* ---------- print: the report becomes a clean A4/Letter page ---------- */
 @media print {
-  :root {
+  :root,
+  :root[data-theme="dark"] {
     /* always the light palette on paper, even if the screen is in dark mode */
     --bg: #fff;
     --bg-2: #f1f1ee;
@@ -1867,7 +2337,8 @@ table.data tr.best td {
   .site-header,
   .site-footer,
   .no-print,
-  .skip-link {
+  .skip-link,
+  .chart-tooltip {
     display: none !important;
   }
   .card {

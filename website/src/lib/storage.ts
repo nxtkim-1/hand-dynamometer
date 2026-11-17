@@ -12,6 +12,7 @@ export interface Session {
   calibration: "estimated" | "measured" | null;
   participant: Participant;
   trials: TrialResult[]; // in plan order; the last one is the fatigue test
+  notes?: string;
 }
 
 const KEY = "gripcheck.sessions.v1";
@@ -56,6 +57,12 @@ export function saveSession(session: Session): boolean {
   }
 }
 
+export function updateSessionNotes(id: string, notes: string): boolean {
+  const existing = getSession(id);
+  if (!existing) return false;
+  return saveSession({ ...existing, notes: notes.trim() ? notes : undefined });
+}
+
 export function deleteSession(id: string) {
   try {
     const rest = loadSessions().filter((s) => s.id !== id);
@@ -63,6 +70,47 @@ export function deleteSession(id: string) {
   } catch {
     /* nothing to do */
   }
+}
+
+export function exportSessionsJson(): string {
+  const list = loadSessions().map((s) => ({ ...s, trials: s.trials.map((t) => ({ ...t, smooth: [] })) }));
+  return JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), sessions: list }, null, 2);
+}
+
+export function importSessionsJson(raw: string): number {
+  const parsed = JSON.parse(raw) as unknown;
+  const arr = Array.isArray(parsed)
+    ? parsed
+    : parsed && typeof parsed === "object" && Array.isArray((parsed as { sessions?: unknown[] }).sessions)
+      ? (parsed as { sessions: unknown[] }).sessions
+      : null;
+  if (!arr) throw new Error("Invalid backup file: expected a GripCheck JSON export.");
+  const valid: Session[] = [];
+  for (const item of arr) {
+    if (
+      item &&
+      typeof item === "object" &&
+      typeof (item as Session).id === "string" &&
+      typeof (item as Session).created === "string" &&
+      (item as Session).participant &&
+      Array.isArray((item as Session).trials) &&
+      (item as Session).trials.length > 0
+    ) {
+      valid.push(item as Session);
+    }
+  }
+  if (valid.length === 0) throw new Error("No valid sessions found in that JSON file.");
+  const existing = loadSessions();
+  const byId = new Map<string, Session>();
+  for (const s of [...valid, ...existing]) {
+    if (!byId.has(s.id)) byId.set(s.id, s);
+  }
+  const merged = [...byId.values()]
+    .sort((a, b) => b.created.localeCompare(a.created))
+    .slice(0, MAX_SESSIONS)
+    .map((s) => ({ ...s, trials: s.trials.map((t) => ({ ...t, smooth: [] })) }));
+  localStorage.setItem(KEY, JSON.stringify(merged));
+  return valid.length;
 }
 
 export function calibrationFor(source: DataSource, fromDevice: "measured" | "estimated" | null): Session["calibration"] {

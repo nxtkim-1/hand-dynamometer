@@ -1,13 +1,16 @@
 // Project overview: what GripCheck is, why it exists, what it does, how it is built, and its honest status.
 
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+
+const CadViewer = lazy(() => import("../components/CadViewer"));
 import {
   IconArrow,
   IconChart,
   IconChip,
   IconClock,
   IconGithub,
+  IconRefresh,
   IconShield,
   IconTarget,
   IconUsb,
@@ -15,8 +18,10 @@ import {
 } from "../components/Icons";
 import { REPO_URL } from "../components/Layout";
 import { filterReadings } from "../lib/filters";
+import { findPeak, rfdNPerS, timeToPeakMs } from "../lib/metrics";
 import { linesToReadings } from "../lib/parse";
-import { makeLines } from "../lib/simulator";
+import { checkTrial, QUALITY_TEXT } from "../lib/quality";
+import { makeLines, type TrialKind } from "../lib/simulator";
 import type { Reading } from "../lib/types";
 
 export default function HomePage() {
@@ -36,9 +41,14 @@ export default function HomePage() {
               <h2>Try the test now</h2>
               <p>No device needed: simulated squeezes run the whole protocol and produce a full report in about two minutes.</p>
             </div>
-            <Link className="btn btn-primary btn-lg" to="/test">
-              Start a grip test <IconArrow />
-            </Link>
+            <div className="btn-row">
+              <Link className="btn btn-primary btn-lg" to="/test">
+                Start a grip test <IconArrow />
+              </Link>
+              <Link className="btn btn-ghost btn-lg" style={{ color: "var(--bg)", borderColor: "color-mix(in oklab, var(--bg) 30%, transparent)" }} to="/results/sample-demo">
+                Sample report
+              </Link>
+            </div>
           </div>
         </div>
       </section>
@@ -65,7 +75,10 @@ function Hero() {
             <Link className="btn btn-primary btn-lg" to="/test">
               Start a grip test <IconArrow />
             </Link>
-            <Link className="btn btn-secondary btn-lg" to="/how-it-works">
+            <Link className="btn btn-secondary btn-lg" to="/results/sample-demo">
+              View sample report
+            </Link>
+            <Link className="btn btn-ghost btn-lg" to="/how-it-works">
               How it works
             </Link>
           </div>
@@ -76,6 +89,9 @@ function Hero() {
             <span>
               <IconWave size={16} /> Simulator for everyone else
             </span>
+            <a href="#cad" style={{ display: "inline-flex", gap: 6, alignItems: "center", fontWeight: 600, color: "var(--accent)" }}>
+              Interactive 3D CAD <IconArrow size={14} />
+            </a>
           </div>
         </div>
         <div className="hero-visual">
@@ -87,23 +103,42 @@ function Hero() {
   );
 }
 
-/** A simulated squeeze drawn on a loop, like a small oscilloscope. Static when motion is reduced. */
+const SCOPE_KINDS: { kind: TrialKind; label: string }[] = [
+  { kind: "good", label: "Good" },
+  { kind: "slip", label: "Slip" },
+  { kind: "false_start", label: "False start" },
+  { kind: "submaximal", label: "Slow rise" },
+];
+
+/** A simulated squeeze drawn on a loop, like a small oscilloscope. Interactive so visitors can inspect curve shapes. */
 function HeroScope() {
-  const [curve, setCurve] = useState<Reading[]>(() => newCurve());
+  const [kind, setKind] = useState<TrialKind>("good");
+  const [runKey, setRunKey] = useState(0);
+  const [curve, setCurve] = useState<Reading[]>(() => newCurve("good"));
   const [shown, setShown] = useState(curve.length);
 
+  function trigger(nextKind: TrialKind) {
+    setKind(nextKind);
+    setCurve(newCurve(nextKind));
+    setRunKey((k) => k + 1);
+  }
+
   useEffect(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduced) {
+      setShown(curve.length);
+      return;
+    }
     let raf = 0;
     let start = performance.now();
     let current = curve;
-    setShown(0);
+    setShown(1);
     const loop = (now: number) => {
       const ms = now - start;
       const n = current.findIndex((r) => r.time_ms > ms);
       setShown(n === -1 ? current.length : n);
-      if (ms > 6500) {
-        current = newCurve();
+      if (ms > 6400) {
+        current = newCurve(kind);
         setCurve(current);
         start = now;
       }
@@ -111,49 +146,94 @@ function HeroScope() {
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [kind, runKey]);
 
   const visible = curve.slice(0, Math.max(1, shown));
+  const finished = shown >= curve.length;
   const w = 300;
-  const h = 150;
+  const h = 140;
   const x = (ms: number) => (ms / 5000) * w;
   const y = (kg: number) => h - 6 - (kg / 40) * (h - 12);
   const d = visible.map((r, i) => `${i ? "L" : "M"}${x(r.time_ms).toFixed(1)},${y(r.force_kg).toFixed(1)}`).join("");
   const now = visible[visible.length - 1];
   const peak = visible.reduce((m, r) => Math.max(m, r.force_kg), 0);
 
+  const summary = useMemo(() => {
+    const p = findPeak(curve).force_kg;
+    const ttp = timeToPeakMs(curve);
+    const rfd = rfdNPerS(curve);
+    const q = checkTrial(curve);
+    return { peak: p, ttp, rfd, q };
+  }, [curve]);
+
+  const strokeColor = kind === "good" ? "var(--accent)" : "var(--left)";
+
   return (
-    <div className="scope" aria-hidden="true">
+    <div className="scope">
       <div className="scope-head">
         <span className="eyebrow">Live force</span>
-        <span className="tag">Simulated</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          {finished ? (
+            <span className={`tag ${summary.q === "good" ? "ok" : "warn"}`}>{QUALITY_TEXT[summary.q].title}</span>
+          ) : (
+            <span className="tag">Simulated</span>
+          )}
+          <button
+            type="button"
+            className="scope-replay"
+            onClick={() => trigger(kind)}
+            title="Replay simulated squeeze"
+            aria-label="Replay simulated squeeze"
+          >
+            <IconRefresh size={13} />
+          </button>
+        </div>
       </div>
-      <div className="scope-value" style={{ marginTop: 10 }}>
+      <div className="scope-value" style={{ marginTop: 8 }}>
         {now.force_kg.toFixed(1)}
         <small>kg</small>
       </div>
-      <div className="muted small mono" style={{ marginTop: 4 }}>
-        peak {peak.toFixed(1)} kg
+      <div className="scope-stats mono small muted">
+        <span>peak {peak.toFixed(1)} kg</span>
+        <span>·</span>
+        <span>{finished ? `TTP ${summary.ttp} ms` : `${(now.time_ms / 1000).toFixed(1)} / 5.0 s`}</span>
+        {finished && summary.rfd !== null && (
+          <>
+            <span>·</span>
+            <span>{Math.round(summary.rfd)} N/s</span>
+          </>
+        )}
       </div>
-      <svg viewBox={`0 0 ${w} ${h}`}>
+      <svg viewBox={`0 0 ${w} ${h}`} aria-hidden="true">
         {[0, 10, 20, 30, 40].map((kg) => (
           <line key={kg} x1={0} x2={w} y1={y(kg)} y2={y(kg)} stroke="var(--rule)" />
         ))}
         {visible.length > 1 && (
           <>
-            <path d={`${d}L${x(now.time_ms)},${y(0)}L0,${y(0)}Z`} fill="var(--accent)" opacity={0.12} />
-            <path d={d} fill="none" stroke="var(--accent)" strokeWidth={2.2} strokeLinejoin="round" />
-            <circle cx={x(now.time_ms)} cy={y(now.force_kg)} r={3.5} fill="var(--accent)" />
+            <path d={`${d}L${x(now.time_ms)},${y(0)}L0,${y(0)}Z`} fill={strokeColor} opacity={0.12} />
+            <path d={d} fill="none" stroke={strokeColor} strokeWidth={2.2} strokeLinejoin="round" />
+            <circle cx={x(now.time_ms)} cy={y(now.force_kg)} r={3.5} fill={strokeColor} />
           </>
         )}
       </svg>
+      <div className="scope-pills" role="group" aria-label="Try simulated curve shapes">
+        {SCOPE_KINDS.map((item) => (
+          <button
+            key={item.kind}
+            type="button"
+            className={`scope-pill${kind === item.kind ? " active" : ""}`}
+            onClick={() => trigger(item.kind)}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
 
-function newCurve(): Reading[] {
-  return filterReadings(linesToReadings(makeLines("right", "max", 5, Math.random, "good")).readings);
+function newCurve(kind: TrialKind = "good"): Reading[] {
+  return filterReadings(linesToReadings(makeLines("right", "max", 5, Math.random, kind)).readings);
 }
 
 // ---------------------------------------------------------------- mission
@@ -289,9 +369,24 @@ function Device() {
           <h2>Every squeeze goes through the load cell.</h2>
           <p className="lead">
             The barrel handle splits lengthwise. The palm half bolts to one end of the load cell, the finger half to the other, and a 3 mm seam keeps
-            them apart, so squeezing the halves together bends the cell and nothing else.
+            them apart, so squeezing the halves together bends the cell and nothing else. Switch below between the current v3 build and the next
+            Jamar-style prototype.
           </p>
         </div>
+
+        <div id="cad" style={{ marginBottom: 28 }}>
+          <Suspense
+            fallback={
+              <div className="card cad-shell" style={{ padding: 48, display: "grid", placeItems: "center", gap: 12, minHeight: 460 }}>
+                <div className="spinner" aria-hidden="true" />
+                <span className="muted small">Loading 3D CAD viewer…</span>
+              </div>
+            }
+          >
+            <CadViewer />
+          </Suspense>
+        </div>
+
         <div className="two-col">
           <div className="gallery" style={{ gridTemplateColumns: "1fr 1fr" }}>
             <figure className="figure" style={{ gridColumn: "span 2" }}>
@@ -325,7 +420,7 @@ function Device() {
             <dt>Fasteners</dt>
             <dd>6 × M6 × 25 button heads into the cell, 4 × M3 for the cover</dd>
             <dt>CAD</dt>
-            <dd>Parametric models in Onshape, plus CadQuery scripts that regenerate and check every part</dd>
+            <dd>CadQuery Python scripts + Onshape STEP assemblies for both the v3 Split-Grip and v4 Jamar-style 5-position prototype</dd>
             <dt>Load limit</dt>
             <dd>Printed parts are not yet tested above 34 kg (75 lb), so calibration loads stay below that</dd>
           </dl>
