@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader.js";
+import { toCreasedNormals } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { IconRefresh } from "./Icons";
 
 export type CadDesignId = "v3" | "jamar";
@@ -166,8 +167,9 @@ async function loadStl(url: string): Promise<THREE.BufferGeometry> {
     stlBufferCache.set(url, req);
   }
   const buf = await req;
-  const geom = new STLLoader().parse(buf);
-  geom.computeVertexNormals();
+  const raw = new STLLoader().parse(buf);
+  const geom = toCreasedNormals(raw, Math.PI / 4);
+  raw.dispose();
   return geom;
 }
 
@@ -353,6 +355,9 @@ export function CadViewer({ variant = "full", design: controlledDesign, onDesign
     renderer.shadowMap.type = THREE.PCFShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.15;
+    renderer.domElement.style.width = "100%";
+    renderer.domElement.style.height = "100%";
+    renderer.domElement.style.display = "block";
     host.innerHTML = "";
     host.appendChild(renderer.domElement);
 

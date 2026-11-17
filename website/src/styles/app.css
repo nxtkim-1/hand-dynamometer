@@ -1977,6 +1977,13 @@ table.data tr.best td {
   cursor: grab;
   touch-action: none;
 }
+.cad-canvas canvas {
+  position: absolute;
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+}
 .cad-canvas:active {
   cursor: grabbing;
 }
