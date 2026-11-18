@@ -47,6 +47,17 @@ The cable leaves the cell's side 3 mm above its bottom, will not be cut, and nee
 
 `../images/options_compact_vs_dish.png` shows both at the same scale. Everything in those folders is marked DO NOT PRINT until a draft is approved.
 
+## v4 Jamar-style two-handle: PRINT-READY (`jamar_v4.py`)
+
+5-part flat-bed clinical Jamar-style build reusing the same CZL601 cell, `6 × M6 × 25` bolts + washers, Arduino Nano, HX711, and uncut cable. Every part prints flat on a `256 × 256 mm` Bambu bed across 2 plates (`36.1 mm` max Z, `0` supports, `~399 g` PETG):
+
+```
+python jamar_v4.py            # all STEPs, web STLs, output/jamar_v4/print_ready/, plus all checks
+python render_jamar_v4.py     # assembly, open-bay, section & 2-plate renders -> ../images/jamar_v4_*.png
+```
+
+See [docs/13_jamar_concept.md](../docs/13_jamar_concept.md) for the part table, hardware list, and stress/clearance checks.
+
 ## Earlier iterations
 
-`archive/` holds every earlier design — the frame, the two-plate version, the clinical head (A), the symmetric head (S), and the plain split tube. `docs/12_design.md` explains why each was replaced.
+`archive/` holds every earlier design — the frame, the two-plate version, the clinical head (A), the symmetric head (S), the plain split tube, and the Oct 16 `jamar_concept.py` draft. `docs/12_design.md` explains why each was replaced.

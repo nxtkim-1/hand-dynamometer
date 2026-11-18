@@ -1,37 +1,59 @@
-# 13 — Jamar-style two-handle concept (v4 prototype — concept only, not print-ready)
+# 13 — Jamar-style two-handle dynamometer (v4 — print-ready)
 
-A possible **v4**: a clinical-style two-handle dynamometer in the spirit of the Jamar, built around the same CZL601 load cell, bolts and electronics as v3. Drafted as a concept on Oct 16. **This is a side project / prototype. v3 remains the design being built and calibrated; nothing here is ready to print.**
+A **v4** clinical-style two-handle dynamometer built around the same measured **CZL601 100 kg** load cell, `6 × M6 × 25` bolts + washers, Arduino Nano, HX711, and uncut `Ø5.13 mm` shielded cable as v3 — redesigned from the Oct 16 boxy concept (`cad/jamar_concept.py`) into an ergonomic, fast-printing, **zero-support flat-bed** build in `cad/jamar_v4.py`.
 
-## Why this style
+> **Build status:** **v3** remains the active calibrated bench build. **v4** is print-ready (`cad/output/jamar_v4/print_ready/`), passes every CAD/force-path/stress/electronics/coil check, and is ready for slicing on a standard `256 × 256 mm` Bambu P1S/P2S bed across 2 plates (`~399 g` PETG total, max Z-height `36.0 mm`).
 
-The Jamar is the clinical standard, and its adjustable grip span is how published grip-strength norms are measured. A two-handle version is a closer match when comparing results against those norms.
+![v4 Jamar-style dynamometer assembly](../images/jamar_v4_view.png)
 
-## How it works
+## Why flat-bed split architecture
 
-The load cell can't go inside a handle in this style — the cell plus its walls is about 45 mm thick, so the grip would be far too fat. Instead the cell stands **upright in a body beside the grip**, roughly where the display sits on the commercial device.
+At `100 kg` (`981 N`), a `~126 mm` C-arm carries `~61.8 N·m` at its `20 mm`-deep root (`25.8 MPa` bending stress). Printing the C-frame upright puts tensile bending stress perpendicular to FDM layer lines (`~20–28 MPa` Z-yield), risking delamination.
 
-- **Frame (grey, fixed):** the body holds the cell. The cell's cable end bolts to the back of the body, using the same 3-hole pattern that passed G0. Arms above and below reach out to the palm bar.
-- **Palm bar (grey, separate):** bolts between the arms at one of **5 positions**, so the grip span adjusts like a Jamar's handle positions.
-- **Finger part (black):** a bracket bolted to the cell's top end, with the finger bar hanging from it. There's a 20 mm gap behind it for the fingertips.
+Splitting the cell flank enclosures (`pod_cover` on `+y`, `guard_left` on `-y`) allows `frame`, `palm_bar`, and `finger_part` to print **100% flat on their `-y` side**:
 
-The squeeze still has only one path — through the load cell — the same principle as v3.
+- **Continuous XY fibers** run directly along the C-arms, spine, and finger bracket root (`~50 MPa` XY flexural yield → `>2.0×` safety factor at `100 kg`).
+- **36.0 mm max print Z-height** (compared to `181+ mm` upright) → ~3× fewer layers and **0 g support material**.
+- **Self-supporting 45° horizontal teardrops & octagonal USB window** so every horizontal M6, M5, and USB cutout bridges cleanly without supports.
 
-Concept checks that passed in CAD:
+## Key ergonomic & mechanical upgrades over concept
 
-- The finger part stays at least 3 mm from the frame everywhere.
-- The cell's bending zone is clear, the cable stays on the fixed side, and all 5 palm-bar positions fit.
-- At 100 kg the finger bar sees about 9 MPa — fine if it's printed lying on its side.
+| Feature | Oct 16 concept (`jamar_concept.py`) | v4 Print-Ready (`jamar_v4.py`) |
+|---|---|---|
+| Handle contours | Sharp rectangular bars | **4-finger scalloped trigger** with slip guards & swept bracket (`7.5 MPa` root) + **convex palm arch** |
+| Print orientation | Upright `181 mm` tall, bulky | **5 flat-bed parts**, max `36.0 mm` Z, **0 supports**, truss weight-relief slots |
+| Span locking | Unspecified loose holes | **5 Jamar positions (`26–66 mm` bar gap)** indexed 1–5 with **captive M5 hex nuts** in the palm bar |
+| Electronics & cable | Unplaced boards, open sides | Enclosed **`+y` pod (`18.5 mm` bend bay + `~1,121 mm` coil well)**, `-y` cell guard (`3.2 mm` clearance), Nano rails, HX711 slot & **45° octagonal rear USB window** |
+| Calibration support | None | Bottom-rear **`Ø7 mm` tie-down lug** (clear below USB plug) + upper calibration strap notch on finger trigger |
 
-## What's not designed yet
+![v4 Jamar-style internal section](../images/jamar_v4_section.png)
 
-- Board mounts inside the body.
-- How to print the frame — it's 181 mm long, so it may need splitting.
-- The calibration fixture.
-- **The 5 handle spacings are placeholders.** A Jamar has 5 lock positions and research commonly uses the 2nd, but the exact distances weren't confirmed. Measure a real Jamar (BME labs or a physio clinic) before matching them.
+## Parts & 2-plate Bambu P1S/P2S print table
 
-## Plan
+| # | Part | Bed footprint (`X × Y × Z`) | Volume / ~PETG | Role |
+|---|---|---|---|---|
+| 1 | `1_frame_jamar_v4.stl` | `202.0 × 211.0 × 36.0 mm` | `279.1 cm³` / `~184 g` | Fixed C-frame + truss arms + Nano/HX711 rails (Plate 1, grey) |
+| 2 | `2_palm_bar_jamar_v4.stl` | `24.4 × 105.6 × 36.1 mm` | `81.6 cm³` / `~54 g` | Ergonomic convex palm bar nested inside Plate 1 C-window |
+| 3 | `3_finger_bar_jamar_v4.stl` | `52.6 × 99.0 × 34.1 mm` | `97.2 cm³` / `~64 g` | 4-finger sculpted trigger + swept cell bracket (Plate 2, black) |
+| 4 | `4_pod_cover_jamar_v4.stl` | `53.0 × 211.0 × 23.3 mm` | `103.8 cm³` / `~69 g` | `+y` cable/coil pod + enclosed cell right flank (Plate 2, charcoal) |
+| 5 | `5_guard_left_jamar_v4.stl` | `53.0 × 211.0 × 7.8 mm` | `42.9 cm³` / `~28 g` | `-y` enclosed cell flank guard (Plate 2, charcoal) |
+| **Total** | **5 parts (2 plates)** | **Max Z: `36.1 mm` · 0 supports** | **`604.7 cm³` / `~399 g`** | Full assembly envelope: `202.0 × 67.1 × 211.0 mm` |
 
-Build v3 first, then this as v4 (option A from the design chat): the cell, electronics, firmware and calibration all carry over. Switching to this immediately would cost about another week of design and test prints before G2.
+![v4 Jamar-style 2-plate flat-bed layout](../images/jamar_v4_print_plates.png)
+
+## Automated CAD verification (`python jamar_v4.py`)
+
+Every run verifies:
+
+- **Force path isolation:** `0.000 mm³` overlap between `finger_part` and fixed parts, `0.000 mm³` overlap on load cell, minimum `3.20 mm` air gap everywhere (`≥ 3.0 mm`), and `[23.5, 33.5, 43.5, 53.5, 63.5] mm` minimum clearances across the 5 palm-bar span stops.
+- **Fasteners:** `6 × M6 × 25` button heads + `Ø12` washers (`12.4 mm` thread engagement) have `0.000 mm³` interference; `8 × M3 × 10` countersunk screws close `pod_cover` and `guard_left`; `2 × M5 × 30` bolts + `2 × M5` hex nuts lock the palm bar.
+- **Uncut cable & electronics:** `18.5 mm` `+y` clearance (`R 11 mm` bend), `0.000 mm³` overlap on cable tube, `~1,121 mm` (`6` Y-layers) coil well, and `0.000 mm³` overlap on Nano, HX711, and an `18 mm` rear USB plug boot.
+
+![v4 Jamar-style open electronics & cable bay](../images/jamar_v4_open_bay.png)
+
+## Open note on clinical handle spacings
+
+- The 5 lock positions (`26, 36, 46, 56, 66 mm` nominal bar gap; `70–110 mm` outer span) still need physical ruler confirmation against a clinical Jamar dynamometer in the BME lab or clinic before paired validity testing (`V`), since `palm_bar` holes are symmetric and easily tuned in `GAPS`.
 
 Sources:
 

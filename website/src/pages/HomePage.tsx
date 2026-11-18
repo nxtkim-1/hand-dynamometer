@@ -116,7 +116,7 @@ function Hero() {
                   className={`pill-tab${heroDesign === "jamar" ? " active" : ""}`}
                   onClick={() => setHeroDesign("jamar")}
                 >
-                  v4 Jamar Prototype
+                  v4 Jamar-Style
                 </button>
               </div>
             ) : (

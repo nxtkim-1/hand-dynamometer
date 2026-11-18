@@ -97,59 +97,75 @@ const DESIGNS: Record<CadDesignId, DesignSpec> = {
   },
   jamar: {
     id: "jamar",
-    name: "v4 Jamar-Style (Prototype)",
-    badge: "Concept CAD · 5-position span",
-    statusTag: "Concept",
+    name: "v4 Jamar-Style (Print-Ready)",
+    badge: "0 supports · 5-pos span",
+    statusTag: "Print-ready",
     statusTone: "accent",
     summary:
-      "Clinical two-handle geometry with the same CZL601 cell mounted upright inside the side body. Adjust the palm bar across 5 lock positions without touching the force path.",
-    dimensions: "181 × 82 × 201 mm",
-    center: [-51, 0, 48],
-    camDist: 510,
+      "Ergonomic clinical two-handle dynamometer engineered for flat-bed support-free PETG printing (max 36 mm Z-height). Features a 4-finger trigger, contoured palm bar with captive M5 nuts, and enclosed electronics + uncut cable pod.",
+    dimensions: "202 × 67 × 211 mm",
+    center: [-45, 7.5, 50],
+    camDist: 525,
     parts: [
       {
         id: "frame",
-        label: "Main frame + arms",
-        role: "Fixed body · holds cell bottom and 5 palm-bar bolt holes",
+        label: "Main C-frame + truss arms",
+        role: "Fixed body · prints flat in 36 mm Z · holds cell, Nano & 5 lock holes",
         color: "#c5cad3",
         file: "/models/jamar_frame.stl",
         isShell: true,
-        explode: [24, 0, 0],
+        explode: [18, 0, 0],
       },
       {
         id: "palm_bar",
-        label: "Adjustable palm bar",
-        role: "Bolts at 5 span positions (26–66 mm gap) on the fixed side",
+        label: "Ergonomic palm bar",
+        role: "Convex palm arch · captive M5 hex nuts across 5 spans (26–66 mm gap)",
         color: "#9aa2ad",
         file: "/models/jamar_palm_bar.stl",
         isShell: true,
-        explode: [-36, 0, 0],
+        explode: [-42, 0, 0],
       },
       {
         id: "finger_part",
-        label: "Finger bar + bracket",
-        role: "Moving handle · cantilevered from the top of the load cell",
+        label: "4-finger sculpted trigger",
+        role: "Moving handle · contoured scallops + swept bracket across 3.5 mm gap",
         color: "#3b424d",
         file: "/models/jamar_finger.stl",
         isShell: true,
-        explode: [-20, 0, 32],
+        explode: [-22, 0, 26],
         squeezeDir: [1, 0, 0],
       },
       {
         id: "cover",
-        label: "Bottom cover",
-        role: "Closes the side electronics & cable cavity",
-        color: "#8d949e",
+        label: "Right electronics + cable pod",
+        role: "18.5 mm cable bay + coil well · 4 × M3 countersunk screws",
+        color: "#4a515d",
         file: "/models/jamar_cover.stl",
         isShell: true,
-        explode: [24, 0, -42],
+        explode: [0, 44, 0],
+      },
+      {
+        id: "guard",
+        label: "Left load-cell guard",
+        role: "Encloses cell flank across 3.2 mm bending air gap (4 × M3)",
+        color: "#4a515d",
+        file: "/models/jamar_guard.stl",
+        isShell: true,
+        explode: [0, -34, 0],
       },
       {
         id: "cell",
         label: "CZL601 100 kg cell",
-        role: "Stands upright inside the body beside the fingertip gap",
+        role: "Stands upright inside spine · sole force path between palm & fingers",
         color: "#229e89",
         explode: [0, 0, 0],
+      },
+      {
+        id: "electronics",
+        label: "Nano + HX711",
+        role: "Arduino Nano & 24-bit ADC inside fixed bay · rear octagonal USB port",
+        color: "#2d6cdf",
+        explode: [0, 18, -22],
       },
     ],
   },
@@ -240,23 +256,39 @@ function buildLoadCellGroup(): THREE.Group {
   return group;
 }
 
-/** Procedural Arduino Nano + HX711 inside the v3 base (exact CAD coordinates). */
-function buildElectronicsGroup(): THREE.Group {
+/** Procedural Arduino Nano + HX711 inside the active design's fixed electronics bay (exact CAD coordinates). */
+function buildElectronicsGroup(design: CadDesignId): THREE.Group {
   const g = new THREE.Group();
   const nanoMat = new THREE.MeshStandardMaterial({ color: "#2d6cdf", roughness: 0.4, metalness: 0.2 });
-  const nano = new THREE.Mesh(new THREE.BoxGeometry(44, 18.1, 3.2), nanoMat);
-  nano.position.set(10, -22.2, -38.2);
-  g.add(nano);
-
   const usbMat = new THREE.MeshStandardMaterial({ color: "#aeb6c2", roughness: 0.25, metalness: 0.8 });
-  const usb = new THREE.Mesh(new THREE.BoxGeometry(6, 7.8, 3.8), usbMat);
-  usb.position.set(-11, -22.2, -35.5);
-  g.add(usb);
-
   const hxMat = new THREE.MeshStandardMaterial({ color: "#1d9a57", roughness: 0.45, metalness: 0.15 });
-  const hx = new THREE.Mesh(new THREE.BoxGeometry(24, 3.2, 16), hxMat);
-  hx.position.set(11, -36.5, -6);
-  g.add(hx);
+
+  if (design === "v3") {
+    const nano = new THREE.Mesh(new THREE.BoxGeometry(44, 18.1, 3.2), nanoMat);
+    nano.position.set(10, -22.2, -38.2);
+    g.add(nano);
+
+    const usb = new THREE.Mesh(new THREE.BoxGeometry(6, 7.8, 3.8), usbMat);
+    usb.position.set(-11, -22.2, -35.5);
+    g.add(usb);
+
+    const hx = new THREE.Mesh(new THREE.BoxGeometry(24, 3.2, 16), hxMat);
+    hx.position.set(11, -36.5, -6);
+    g.add(hx);
+  } else {
+    // Jamar v4: Nano on -y bay rail along X, USB pointing +x rear window; HX711 above Nano along front bay
+    const nano = new THREE.Mesh(new THREE.BoxGeometry(44, 3.2, 18.1), nanoMat);
+    nano.position.set(20.2, -4.9, -33.0);
+    g.add(nano);
+
+    const usb = new THREE.Mesh(new THREE.BoxGeometry(6, 3.8, 7.8), usbMat);
+    usb.position.set(41.2, -2.2, -33.0);
+    g.add(usb);
+
+    const hx = new THREE.Mesh(new THREE.BoxGeometry(4, 24, 16), hxMat);
+    hx.position.set(-0.7, -2.0, -11.5);
+    g.add(hx);
+  }
   return g;
 }
 
@@ -573,22 +605,20 @@ export function CadViewer({ variant = "full", design: controlledDesign, onDesign
         r!.modelGroup.add(cell);
         r!.parts.set("cell", { obj: cell, meta: cellMeta, basePos: cell.position.clone(), mats: cellMats });
 
-        if (design === "v3") {
-          const elec = buildElectronicsGroup();
-          elec.userData.partId = "electronics";
-          const elecMats: THREE.MeshStandardMaterial[] = [];
-          elec.traverse((c) => {
-            if ((c as THREE.Mesh).isMesh) {
-              const mesh = c as THREE.Mesh;
-              const m = mesh.material as THREE.MeshStandardMaterial;
-              elecMats.push(m);
-              disposables.push(mesh.geometry, m);
-            }
-          });
-          const elecMeta = activeSpec.parts.find((p) => p.id === "electronics")!;
-          r!.modelGroup.add(elec);
-          r!.parts.set("electronics", { obj: elec, meta: elecMeta, basePos: elec.position.clone(), mats: elecMats });
-        }
+        const elec = buildElectronicsGroup(design);
+        elec.userData.partId = "electronics";
+        const elecMats: THREE.MeshStandardMaterial[] = [];
+        elec.traverse((c) => {
+          if ((c as THREE.Mesh).isMesh) {
+            const mesh = c as THREE.Mesh;
+            const m = mesh.material as THREE.MeshStandardMaterial;
+            elecMats.push(m);
+            disposables.push(mesh.geometry, m);
+          }
+        });
+        const elecMeta = activeSpec.parts.find((p) => p.id === "electronics")!;
+        r!.modelGroup.add(elec);
+        r!.parts.set("electronics", { obj: elec, meta: elecMeta, basePos: elec.position.clone(), mats: elecMats });
 
         // Load STL shells concurrently
         const fileParts = activeSpec.parts.filter((p) => p.file);
@@ -786,7 +816,7 @@ export function CadViewer({ variant = "full", design: controlledDesign, onDesign
               className={`pill-tab${design === id ? " active" : ""}`}
               onClick={() => setDesign(id)}
             >
-              {id === "v3" ? "v3 Split-Grip (Current)" : "v4 Jamar-Style (Prototype)"}
+              {id === "v3" ? "v3 Split-Grip (Current)" : "v4 Jamar-Style (Print-Ready)"}
             </button>
           ))}
         </div>
