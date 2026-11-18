@@ -74,7 +74,7 @@ export default function HowItWorksPage() {
           </ol>
           <figure className="figure" style={{ marginTop: 24, maxWidth: 720 }}>
             <div className="frame">
-              <img src="/images/drawing_wiring.png" alt="Wiring drawing: HX711 VCC to 5V, GND to GND, DT to D3, SCK to D2 on the Arduino Nano" loading="lazy" />
+              <img src={`${import.meta.env.BASE_URL}images/drawing_wiring.png`} alt="Wiring drawing: HX711 VCC to 5V, GND to GND, DT to D3, SCK to D2 on the Arduino Nano" loading="lazy" />
             </div>
             <figcaption>Wiring: HX711 VCC → 5V, GND → GND, DT → D3, SCK → D2.</figcaption>
           </figure>
@@ -132,7 +132,7 @@ export default function HowItWorksPage() {
           </div>
           <figure className="figure">
             <div className="frame">
-              <img src="/images/filter_comparison.png" alt="Left: raw, moving average and Butterworth curves during the rise. Right: RFD error box plots over 300 simulated trials." loading="lazy" />
+              <img src={`${import.meta.env.BASE_URL}images/filter_comparison.png`} alt="Left: raw, moving average and Butterworth curves during the rise. Right: RFD error box plots over 300 simulated trials." loading="lazy" />
             </div>
             <figcaption>Raw vs moving average vs Butterworth on simulated trials.</figcaption>
           </figure>

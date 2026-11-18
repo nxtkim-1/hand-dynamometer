@@ -436,19 +436,19 @@ function Device() {
           <div className="gallery" style={{ gridTemplateColumns: "1fr 1fr" }}>
             <figure className="figure" style={{ gridColumn: "span 2" }}>
               <div className="frame">
-                <img className="render" src="/images/compact_v3_section.png" alt="Section view of the v3 dynamometer showing the load cell between the palm and finger halves" loading="lazy" />
+                <img className="render" src={`${import.meta.env.BASE_URL}images/compact_v3_section.png`} alt="Section view of the v3 dynamometer showing the load cell between the palm and finger halves" loading="lazy" />
               </div>
               <figcaption>Section through the v3 design: the cell is the only path between the two halves.</figcaption>
             </figure>
             <figure className="figure">
               <div className="frame">
-                <img className="render" src="/images/compact_v3_inside.png" alt="Inside the electronics box, with the Arduino Nano and HX711 board" loading="lazy" />
+                <img className="render" src={`${import.meta.env.BASE_URL}images/compact_v3_inside.png`} alt="Inside the electronics box, with the Arduino Nano and HX711 board" loading="lazy" />
               </div>
               <figcaption>The 57 × 82 mm base holds the Nano, HX711 and coiled cable.</figcaption>
             </figure>
             <figure className="figure">
               <div className="frame">
-                <img src="/images/2026-10-12_cell_side.jpg" alt="Photo of the CZL601 load cell" loading="lazy" />
+                <img src={`${import.meta.env.BASE_URL}images/2026-10-12_cell_side.jpg`} alt="Photo of the CZL601 load cell" loading="lazy" />
               </div>
               <figcaption>The CZL601 100 kg parallel-beam load cell.</figcaption>
             </figure>

@@ -1,38 +1,37 @@
 # hand-dynamometer
 
-A low-cost, 3D-printed grip strength dynamometer built around a load cell, an HX711 amplifier, and an Arduino, together with a Python application that administers a standardized grip test, analyzes the full force-time curve, and compares the result with published normative data.
+A low-cost, 3D-printed grip strength dynamometer built around a load cell, an HX711 amplifier, and an Arduino, together with a browser application (**GripCheck**, with interactive 3D CAD) that administers a standardized grip test, analyzes the full force-time curve, and compares the result with published normative data.
+
+**Live Web App & Interactive 3D CAD:** [gripcheck.vercel.app](https://gripcheck.vercel.app) · [nxtkim-1.github.io/hand-dynamometer](https://nxtkim-1.github.io/hand-dynamometer/)
 
 > **Educational project.** This device is not a medical device and is not intended for diagnosis or clinical decision-making.
 
 <p align="center">
-  <img src="images/compact_v3_assembled.png" alt="3D-printed grip dynamometer (CAD render)" width="320">
+  <img src="images/compact_v3_assembled.png" alt="v3 Split-Grip dynamometer (CAD render)" width="300">
+  &nbsp;&nbsp;&nbsp;
+  <img src="images/jamar_v4_view.png" alt="v4 Jamar-style print-ready dynamometer (CAD render)" width="300">
 </p>
 
 ---
 
 ## Hardware
 
-A handheld grip-strength instrument built around a **CZL601 100 kg load cell**. Its barrel-shaped handle splits into two halves; an **HX711** amplifier and **Arduino Nano** read the load cell and send the data to a laptop. Calibration uses known masses through the same load path as a real squeeze.
+A handheld grip-strength instrument built around a **CZL601 100 kg load cell**, an **HX711** amplifier, and an **Arduino Nano**. Calibration uses known masses through the same load path as a real squeeze.
 
-**Current version: v3** — The split-grip barrel handle has a **flat chamfered top** and sits on a **closed 57 × 82 mm electronics box** (~204 mm tall) for the Nano, HX711 and coiled, uncut cable. All four v3 parts are **native, from-scratch parametric models** in Onshape — **[Hand Dynamometer v3](https://cad.onshape.com/documents/14d87426a9f5f0f89acb0ff1/w/cbee608c747a369f00bd9d19/e/3240b9b82e6414542f1a770b)** (private). The palm half, finger half, bay cover and base test were rebuilt feature by feature (sketches, revolves, extrudes and bolt pattern) from `cad/dynamometer_cad.py` and the v3 mesh measurements. The Jamar-style two-handle concept, a possible **v4 prototype** (`docs/13_jamar_concept.md`, `cad/jamar_concept.py`), is modeled in the same document as a separate part studio with a frame, palm bar, finger part and cover. The renders below show v2 (dome top, round flared base); v3 renders are still pending. Superseded v2 CAD files remain in `cad/archive/superseded_2026-10-16/`.
+- **Current active build — v3 Split-Grip:** The split-grip barrel handle has a **flat chamfered top** and sits on a **closed 57 × 82 mm electronics box** (~204 mm tall) for the Nano, HX711, and coiled, uncut cable. All four v3 parts are modeled in `cad/dynamometer_cad.py` and in Onshape — **[Hand Dynamometer v3](https://cad.onshape.com/documents/14d87426a9f5f0f89acb0ff1/w/cbee608c747a369f00bd9d19/e/3240b9b82e6414542f1a770b)**. The **grey palm half** bolts to the bottom of the load cell, and the **black finger half** bolts to its top across a 3 mm seam, so every squeeze passes through the load cell (`docs/12_design.md`).
+- **New v4 Jamar-Style (Print-Ready):** An ergonomic two-handle clinical dynamometer ([`cad/jamar_v4.py`](cad/jamar_v4.py), [`docs/13_jamar_concept.md`](docs/13_jamar_concept.md)) built around the exact same CZL601 cell, `6 × M6 × 25` bolts, Nano, HX711, and uncut cable. Engineered as a **5-part flat-bed print** across **2 Bambu `256 × 256 mm` plates** (`36.1 mm` max Z-height, **0 supports**, `~399 g` PETG), featuring a scalloped 4-finger trigger, contoured palm bar with captive M5 hex nuts across 5 grip spans (`26–66 mm`), enclosed `18.5 mm` cable/coil pod + Nano/HX711 bay with a rear USB window, and automated `100 kg` stress/clearance verification (`cad/output/jamar_v4/print_ready/`).
 
-**CAD status:** All five Onshape part studios regenerate cleanly as native parametric models; known open items are tracked in [docs/14_cad_open_items.md](docs/14_cad_open_items.md).
+**CAD status:** All v3 Onshape part studios regenerate cleanly ([docs/14_cad_open_items.md](docs/14_cad_open_items.md)), and the v4 Jamar-style assembly passes all automated CAD, force-path (`0.000 mm³` overlap, `≥ 3.2 mm` clearance), electronics, cable-coil, and stress checks.
 
-The grip splits lengthwise. The **grey palm half** bolts to the bottom of the load cell, and the **black finger half** bolts to its top. A 3 mm seam keeps the halves apart, so every squeeze has to pass through the load cell.
+## Renders & Screenshots
 
-A full explanation of the features and design process is in **[`docs/12_design.md`](docs/12_design.md)**.
+- **v4 Jamar-Style Print-Ready:** [Assembly](images/jamar_v4_view.png) · [Cross-section](images/jamar_v4_section.png) · [2-plate flat-bed layout](images/jamar_v4_print_plates.png) · [Open electronics & cable bay](images/jamar_v4_open_bay.png)
+- **v3 Onshape proof captures:** [Palm half](docs/proofs/palm-half.png) · [Finger half](docs/proofs/finger.png) · [Bay cover](docs/proofs/cover.png) · [Base test](docs/proofs/base.png)
 
-## Screenshots
-
-Onshape proof captures for the v3 parts and Jamar concept:
-
-- [Palm half](docs/proofs/palm-half.png)
-- [Finger half](docs/proofs/finger.png)
-- [Bay cover](docs/proofs/cover.png)
-- [Base test](docs/proofs/base.png)
-- [Jamar v4 concept](docs/proofs/jamar.png)
-
-![Onshape proof screenshot: v3 palm half](docs/proofs/palm-half.png)
+<p align="center">
+  <img src="images/jamar_v4_section.png" alt="v4 Jamar-style section view showing ergonomic palm arch, 4-finger trigger, load cell, Nano, HX711 and cable coil" width="380">
+  <img src="images/jamar_v4_print_plates.png" alt="v4 Jamar-style 2-plate flat-bed Bambu print layout (0 supports, max 36.1 mm Z)" width="380">
+</p>
 
 ---
 
@@ -157,17 +156,21 @@ hand-dynamometer/
 ├── tests/              # pytest suite
 ├── requirements.txt
 ├── cad/
-│   ├── dynamometer_cad.py   # The whole design, parametric; regenerates every part and checks it
-│   ├── render_final.py      # The renders in images/
-│   ├── draw_final.py        # The dimensioned drawing
-│   ├── output/              # STL + STEP per part, assembly.step
-│   ├── output/print_ready/  # STLs ready for Bambu Studio (do not rotate them)
-│   └── archive/             # Earlier design iterations
+│   ├── dynamometer_cad.py      # v3 Split-Grip parametric design + checks
+│   ├── jamar_v4.py             # v4 Jamar-style flat-bed print-ready design + checks
+│   ├── render_final.py         # v3 renders -> images/
+│   ├── render_jamar_v4.py      # v4 assembly, section, bay & 2-plate renders -> images/
+│   ├── draw_final.py           # Dimensioned drawing
+│   ├── output/                 # v3 STL + STEP per part, assembly.step
+│   ├── output/print_ready/     # v3 STLs oriented for printing
+│   ├── output/jamar_v4/        # v4 STEPs, STLs & print_ready/ (2 plates, 0 supports)
+│   └── archive/                # Earlier design iterations
+├── website/                    # React + Three.js interactive 3D CAD viewer & Web Serial GripCheck app
 ├── firmware/
-│   └── grip_firmware/       # Arduino sketch
-├── software/           # logger.py, calibrate.py, analyze_hold.py: serial logging and calibration
-├── data/               # dodds2014_norms.csv, example calibration points
-├── docs/               # Design notes, incl. 12_design.md and 13_jamar_concept.md (v4 concept)
+│   └── grip_firmware/          # Arduino sketch
+├── software/                   # logger.py, calibrate.py, analyze_hold.py: serial logging and calibration
+├── data/                       # dodds2014_norms.csv, example calibration points
+├── docs/                       # Design notes, incl. 12_design.md and 13_jamar_concept.md (v4 print-ready)
 ├── images/             # Renders, drawings, and photos
 ├── practice/           # Earlier development versions, kept for reference
 └── sessions/           # Saved test sessions (excluded from version control)

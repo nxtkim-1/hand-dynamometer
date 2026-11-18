@@ -174,13 +174,14 @@ const DESIGNS: Record<CadDesignId, DesignSpec> = {
 const stlBufferCache = new Map<string, Promise<ArrayBuffer>>();
 
 async function loadStl(url: string): Promise<THREE.BufferGeometry> {
-  let req = stlBufferCache.get(url);
+  const resolved = `${import.meta.env.BASE_URL}${url.replace(/^\/+/, "")}`;
+  let req = stlBufferCache.get(resolved);
   if (!req) {
-    req = fetch(url).then((res) => {
-      if (!res.ok) throw new Error(`Failed to fetch CAD mesh (${res.status}): ${url}`);
+    req = fetch(resolved).then((res) => {
+      if (!res.ok) throw new Error(`Failed to fetch CAD mesh (${res.status}): ${resolved}`);
       return res.arrayBuffer();
     });
-    stlBufferCache.set(url, req);
+    stlBufferCache.set(resolved, req);
   }
   const buf = await req;
   const raw = new STLLoader().parse(buf);
