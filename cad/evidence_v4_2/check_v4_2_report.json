@@ -1,0 +1,331 @@
+{
+ "tag": "GEOMETRIC-ONLY",
+ "bed_mm": [
+  240,
+  240,
+  250
+ ],
+ "bed_z_note": "Z limit assumed, not measured",
+ "n_checks": 53,
+ "n_failed": 0,
+ "checks": [
+  {
+   "check": "frame: single valid STEP solid",
+   "pass": true,
+   "value": "1 solid(s)",
+   "note": ""
+  },
+  {
+   "check": "frame: print STL watertight + consistent winding",
+   "pass": true,
+   "value": "17384 faces",
+   "note": ""
+  },
+  {
+   "check": "frame: STL volume matches STEP (< 1 %)",
+   "pass": true,
+   "value": "0.00 %",
+   "note": ""
+  },
+  {
+   "check": "frame: fits bed lying flat as exported",
+   "pass": true,
+   "value": "180.5 x 214.0 x 36.0 mm",
+   "note": ""
+  },
+  {
+   "check": "frame: lies flat (min z = 0)",
+   "pass": true,
+   "value": "min z -0.000",
+   "note": ""
+  },
+  {
+   "check": "palm_bar: single valid STEP solid",
+   "pass": true,
+   "value": "1 solid(s)",
+   "note": ""
+  },
+  {
+   "check": "palm_bar: print STL watertight + consistent winding",
+   "pass": true,
+   "value": "6510 faces",
+   "note": ""
+  },
+  {
+   "check": "palm_bar: STL volume matches STEP (< 1 %)",
+   "pass": true,
+   "value": "0.27 %",
+   "note": ""
+  },
+  {
+   "check": "palm_bar: fits bed lying flat as exported",
+   "pass": true,
+   "value": "20.0 x 141.8 x 36.0 mm",
+   "note": ""
+  },
+  {
+   "check": "palm_bar: lies flat (min z = 0)",
+   "pass": true,
+   "value": "min z 0.000",
+   "note": ""
+  },
+  {
+   "check": "finger_part: single valid STEP solid",
+   "pass": true,
+   "value": "1 solid(s)",
+   "note": ""
+  },
+  {
+   "check": "finger_part: print STL watertight + consistent winding",
+   "pass": true,
+   "value": "3202 faces",
+   "note": ""
+  },
+  {
+   "check": "finger_part: STL volume matches STEP (< 1 %)",
+   "pass": true,
+   "value": "0.83 %",
+   "note": ""
+  },
+  {
+   "check": "finger_part: fits bed lying flat as exported",
+   "pass": true,
+   "value": "45.0 x 129.0 x 34.0 mm",
+   "note": ""
+  },
+  {
+   "check": "finger_part: lies flat (min z = 0)",
+   "pass": true,
+   "value": "min z 0.000",
+   "note": ""
+  },
+  {
+   "check": "pod_cover: single valid STEP solid",
+   "pass": true,
+   "value": "1 solid(s)",
+   "note": ""
+  },
+  {
+   "check": "pod_cover: print STL watertight + consistent winding",
+   "pass": true,
+   "value": "4830 faces",
+   "note": ""
+  },
+  {
+   "check": "pod_cover: STL volume matches STEP (< 1 %)",
+   "pass": true,
+   "value": "0.00 %",
+   "note": ""
+  },
+  {
+   "check": "pod_cover: fits bed lying flat as exported",
+   "pass": true,
+   "value": "53.0 x 214.0 x 23.3 mm",
+   "note": ""
+  },
+  {
+   "check": "pod_cover: lies flat (min z = 0)",
+   "pass": true,
+   "value": "min z -0.000",
+   "note": ""
+  },
+  {
+   "check": "guard_left: single valid STEP solid",
+   "pass": true,
+   "value": "1 solid(s)",
+   "note": ""
+  },
+  {
+   "check": "guard_left: print STL watertight + consistent winding",
+   "pass": true,
+   "value": "4150 faces",
+   "note": ""
+  },
+  {
+   "check": "guard_left: STL volume matches STEP (< 1 %)",
+   "pass": true,
+   "value": "0.00 %",
+   "note": ""
+  },
+  {
+   "check": "guard_left: fits bed lying flat as exported",
+   "pass": true,
+   "value": "53.0 x 214.0 x 7.8 mm",
+   "note": ""
+  },
+  {
+   "check": "guard_left: lies flat (min z = 0)",
+   "pass": true,
+   "value": "min z -0.000",
+   "note": ""
+  },
+  {
+   "check": "plate 240x240_2Color_Plate1_grey_frame_palm.stl: within 240 x 240",
+   "pass": true,
+   "value": "215.0 x 214.0 x 36.0 mm",
+   "note": ""
+  },
+  {
+   "check": "plate 240x240_2Color_Plate2_black_finger_pod_guard: within 240 x 240",
+   "pass": true,
+   "value": "181.0 x 214.0 x 34.0 mm",
+   "note": ""
+  },
+  {
+   "check": "plate 240x240_OptionA_Plate1_4of5_parts.stl: within 240 x 240",
+   "pass": true,
+   "value": "233.5 x 233.5 x 36.0 mm",
+   "note": ""
+  },
+  {
+   "check": "plate 240x240_OptionA_Plate2_guard_left_only.stl: within 240 x 240",
+   "pass": true,
+   "value": "53.0 x 214.0 x 7.8 mm",
+   "note": ""
+  },
+  {
+   "check": "plate 240x240_OptionB_Plate1_frame_palm_finger.stl: within 240 x 240",
+   "pass": true,
+   "value": "215.0 x 214.0 x 36.0 mm",
+   "note": ""
+  },
+  {
+   "check": "plate 240x240_OptionB_Plate2_pod_and_guard.stl: within 240 x 240",
+   "pass": true,
+   "value": "126.0 x 214.0 x 23.3 mm",
+   "note": ""
+  },
+  {
+   "check": "no overlap frame / palm_bar",
+   "pass": true,
+   "value": "0.0000 mm3",
+   "note": ""
+  },
+  {
+   "check": "no overlap frame / finger_part",
+   "pass": true,
+   "value": "0.0000 mm3",
+   "note": ""
+  },
+  {
+   "check": "no overlap frame / pod_cover",
+   "pass": true,
+   "value": "0.0000 mm3",
+   "note": ""
+  },
+  {
+   "check": "no overlap frame / guard_left",
+   "pass": true,
+   "value": "0.0000 mm3",
+   "note": ""
+  },
+  {
+   "check": "no overlap palm_bar / finger_part",
+   "pass": true,
+   "value": "0.0000 mm3",
+   "note": ""
+  },
+  {
+   "check": "no overlap palm_bar / pod_cover",
+   "pass": true,
+   "value": "0.0000 mm3",
+   "note": ""
+  },
+  {
+   "check": "no overlap palm_bar / guard_left",
+   "pass": true,
+   "value": "0.0000 mm3",
+   "note": ""
+  },
+  {
+   "check": "no overlap finger_part / pod_cover",
+   "pass": true,
+   "value": "0.0000 mm3",
+   "note": ""
+  },
+  {
+   "check": "no overlap finger_part / guard_left",
+   "pass": true,
+   "value": "0.0000 mm3",
+   "note": ""
+  },
+  {
+   "check": "no overlap pod_cover / guard_left",
+   "pass": true,
+   "value": "0.0000 mm3",
+   "note": ""
+  },
+  {
+   "check": "finger part: free travel toward palm before touching a fixed part",
+   "pass": true,
+   "value": "17.1 mm",
+   "note": "cell deflects < 1 mm at full scale, so >= 3 mm means no force bypass on the squeeze axis"
+  },
+  {
+   "check": "source rebuilds the exported palm bar (setting 2)",
+   "pass": true,
+   "value": "volume diff 0.000 %",
+   "note": "shows the editable source matches what was printed"
+  },
+  {
+   "check": "setting 1 (44 mm): palm bar overlaps nothing",
+   "pass": true,
+   "value": "0.0000 mm3",
+   "note": ""
+  },
+  {
+   "check": "setting 1: keyed seat bears on frame before the bolts",
+   "pass": true,
+   "value": "0.35 mm free travel in +x",
+   "note": ""
+  },
+  {
+   "check": "setting 2 (56 mm): palm bar overlaps nothing",
+   "pass": true,
+   "value": "0.0000 mm3",
+   "note": ""
+  },
+  {
+   "check": "setting 2: keyed seat bears on frame before the bolts",
+   "pass": true,
+   "value": "0.35 mm free travel in +x",
+   "note": ""
+  },
+  {
+   "check": "setting 3 (68 mm): palm bar overlaps nothing",
+   "pass": true,
+   "value": "0.0000 mm3",
+   "note": ""
+  },
+  {
+   "check": "setting 3: keyed seat bears on frame before the bolts",
+   "pass": true,
+   "value": "0.35 mm free travel in +x",
+   "note": ""
+  },
+  {
+   "check": "setting 4 (80 mm): palm bar overlaps nothing",
+   "pass": true,
+   "value": "0.0000 mm3",
+   "note": ""
+  },
+  {
+   "check": "setting 4: keyed seat bears on frame before the bolts",
+   "pass": true,
+   "value": "0.35 mm free travel in +x",
+   "note": ""
+  },
+  {
+   "check": "setting 5 (92 mm): palm bar overlaps nothing",
+   "pass": true,
+   "value": "0.0000 mm3",
+   "note": ""
+  },
+  {
+   "check": "setting 5: keyed seat bears on frame before the bolts",
+   "pass": true,
+   "value": "0.35 mm free travel in +x",
+   "note": ""
+  }
+ ]
+}
