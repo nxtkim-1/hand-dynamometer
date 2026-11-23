@@ -7,7 +7,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { LiveChart, type Pt } from "../components/Charts";
-import { useDevice, useLiveForce } from "../components/DeviceContext";
+import { useDevice, useLiveForce, useNegativeReading } from "../components/DeviceContext";
 import { IconArrow, IconCheck, IconInfo, IconUsb, IconVolume, IconVolumeOff, IconWarn, IconWave } from "../components/Icons";
 import { serialSupported } from "../lib/device";
 import { linesToReadings, parseLine } from "../lib/parse";
@@ -39,10 +39,66 @@ const cap = (s: string) => s[0].toUpperCase() + s.slice(1);
 const colorVarFor = (step: Step) => (step.test === "fatigue" ? "--fatigue" : `--${step.hand}`);
 const stepLabel = (s: Step) => (s.test === "fatigue" ? "30 s hold" : `${s.hand[0].toUpperCase()}${s.trial}`);
 
+/** Shown when the device reads clearly below zero. A squeeze only pushes the bars together, so there are
+ *  two causes: the cell sits the other way round in this frame (flip the direction), or the device was
+ *  zeroed while something pressed on it (zero again). The graphs start at 0, so negative force draws as
+ *  a flat line on the axis, which is why the graph looks empty. */
+function DirectionCheck(props: {
+  negative: boolean;
+  reversed: boolean;
+  onReverse: (on: boolean) => void;
+  onZero?: () => void;
+  zeroing?: boolean;
+}) {
+  const { negative, reversed, onReverse, onZero, zeroing } = props;
+  if (negative) {
+    return (
+      <div className="notice warn" role="alert">
+        <IconWarn />
+        <div style={{ display: "grid", gap: 8 }}>
+          <span>
+            <b>The force went below zero, so the graph has nothing to draw.</b> Squeezing can only push the bars together, so check which
+            case this is:
+          </span>
+          <span>
+            <b>Squeezing makes the number go more negative:</b> the load cell is mounted the other way round in this frame.{" "}
+            <button type="button" className="btn btn-sm btn-secondary" onClick={() => onReverse(!reversed)}>
+              {reversed ? "Undo reverse" : "Reverse direction"}
+            </button>
+          </span>
+          <span>
+            <b>It reads negative with nothing touching it:</b> it was zeroed while something pressed on it. Let go and zero again.
+            {onZero && (
+              <>
+                {" "}
+                <button type="button" className="btn btn-sm btn-secondary" disabled={zeroing} onClick={onZero}>
+                  {zeroing ? "Zeroing… hands off" : "Zero again"}
+                </button>
+              </>
+            )}
+          </span>
+        </div>
+      </div>
+    );
+  }
+  if (reversed) {
+    return (
+      <p className="muted small" style={{ margin: 0 }}>
+        Direction reversed in this browser (same as flipping SIGN in the firmware).{" "}
+        <button type="button" className="btn btn-sm btn-ghost" onClick={() => onReverse(false)}>
+          Undo
+        </button>
+      </p>
+    );
+  }
+  return null;
+}
+
 export default function TestPage() {
   const navigate = useNavigate();
-  const { device, status, message, connect } = useDevice();
+  const { device, status, message, connect, reversed, setReversed } = useDevice();
   const liveKg = useLiveForce(device);
+  const negative = useNegativeReading(device);
 
   const [stage, setStage] = useState<Stage>("setup");
   const [source, setSource] = useState<DataSource>(device ? "device" : "simulated");
@@ -382,6 +438,13 @@ export default function TestPage() {
                 <div className="meter-bar" aria-hidden="true">
                   <i style={{ width: `${Math.min(100, (liveVal / 50) * 100)}%` }} />
                 </div>
+                <DirectionCheck
+                  negative={negative}
+                  reversed={reversed}
+                  onReverse={setReversed}
+                  onZero={() => void zeroDevice(false)}
+                  zeroing={zeroing}
+                />
               </div>
             )}
             {message && status !== "connected" && (
@@ -549,6 +612,7 @@ export default function TestPage() {
               {error}
             </p>
           )}
+          {device && <DirectionCheck negative={negative} reversed={reversed} onReverse={setReversed} />}
           {calibrationBanner}
           <div className="btn-row">
             <button className="btn btn-primary btn-lg" disabled={!device || zeroing} onClick={() => void zeroDevice(true)}>
@@ -705,6 +769,15 @@ export default function TestPage() {
               <p className="go-text" aria-live="polite">
                 {phase === "countdown" ? "Get ready…" : step.test === "fatigue" ? PROMPT_FATIGUE : PROMPT_GO}
               </p>
+            )}
+            {source === "device" && device && !busy && (
+              <DirectionCheck
+                negative={negative}
+                reversed={reversed}
+                onReverse={setReversed}
+                onZero={() => void zeroDevice(false)}
+                zeroing={zeroing}
+              />
             )}
             {phase === "error" && (
               <div className="notice bad" role="alert">

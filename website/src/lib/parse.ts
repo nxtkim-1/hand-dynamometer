@@ -40,3 +40,26 @@ export function parseCalibrationComment(line: string): "measured" | "estimated" 
   const m = /^#.*calibration\s*=\s*(measured|estimated)/i.exec(line.trim());
   return m ? (m[1].toLowerCase() as "measured" | "estimated") : null;
 }
+
+/** Flip the sign of a data line, the same as changing SIGN in the firmware.
+ *  Firmware "t_ms,raw,net,force_kg": net and force_kg flip, time and raw stay as they are.
+ *  Simulator "t_ms,force_kg": force flips. Comments and anything else come back unchanged. */
+export function reverseLine(line: string): string {
+  if (parseLine(line) === null) return line;
+  const parts = line.split(",");
+  const flip = (s: string) => {
+    const t = s.trim();
+    const decimals = t.includes(".") ? t.split(".")[1].length : 0;
+    const v = -Number(t);
+    return (v === 0 ? 0 : v).toFixed(decimals); // never print "-0"
+  };
+  const last = parts.length - 1;
+  parts[last] = flip(parts[last]);
+  if (parts.length >= 4) parts[last - 1] = flip(parts[last - 1]);
+  return parts.join(",");
+}
+
+/** A squeeze can only push the bars together, so a reading this far below zero is not noise
+ *  (the bench noise is about ±70 counts, a few grams): either the direction is reversed, or the
+ *  device was zeroed while something was pressing on it. */
+export const NEGATIVE_WARN_KG = -2;

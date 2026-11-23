@@ -2196,6 +2196,20 @@ table.data tr.best td {
   color: var(--accent-ink);
 }
 
+/* design picker: the printed design as the main tab, earlier designs as small chips */
+.design-picker {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.design-previous {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
 /* ---------- responsive ---------- */
 @media (max-width: 1000px) {
   .cad-body {
