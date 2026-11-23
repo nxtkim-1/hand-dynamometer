@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import CadViewer, { type CadDesignId } from "../components/CadViewer";
+import CadViewer, { DesignPicker, MAIN_DESIGN, type CadDesignId } from "../components/CadViewer";
 import {
   IconArrow,
   IconChart,
@@ -59,13 +59,13 @@ export default function HomePage() {
 
 function Hero() {
   const [heroMode, setHeroMode] = useState<"cad" | "curve">("cad");
-  const [heroDesign, setHeroDesign] = useState<CadDesignId>("v3");
+  const [heroDesign, setHeroDesign] = useState<CadDesignId>(MAIN_DESIGN);
 
   return (
     <section className="hero">
       <div className="container">
         <div>
-          <span className="eyebrow">Open-source grip dynamometer · v3 &amp; v4 concept</span>
+          <span className="eyebrow">Open-source grip dynamometer · v4.2 Jamar-style</span>
           <h1>
             Grip strength, measured as a <em>whole curve</em>, not one number.
           </h1>
@@ -99,26 +99,7 @@ function Hero() {
         <div className="hero-visual hero-visual-cad">
           <div className="hero-visual-bar">
             {heroMode === "cad" ? (
-              <div className="pill-tabs" role="tablist" aria-label="Choose 3D CAD design">
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={heroDesign === "v3"}
-                  className={`pill-tab${heroDesign === "v3" ? " active" : ""}`}
-                  onClick={() => setHeroDesign("v3")}
-                >
-                  v3 Split-Grip
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={heroDesign === "jamar"}
-                  className={`pill-tab${heroDesign === "jamar" ? " active" : ""}`}
-                  onClick={() => setHeroDesign("jamar")}
-                >
-                  v4 Jamar-Style
-                </button>
-              </div>
+              <DesignPicker design={heroDesign} onChange={setHeroDesign} />
             ) : (
               <span className="eyebrow">Simulated squeeze</span>
             )}
@@ -422,9 +403,9 @@ function Device() {
           <span className="eyebrow">The device</span>
           <h2>Every squeeze goes through the load cell.</h2>
           <p className="lead">
-            The barrel handle splits lengthwise. The palm half bolts to one end of the load cell, the finger half to the other, and a 3 mm seam keeps
-            them apart, so squeezing the halves together bends the cell and nothing else. Switch below between the current v3 build and the next
-            Jamar-style prototype.
+            The palm bar is fixed to the frame, the finger part bolts to the free end of the load cell, and an air gap keeps it clear of
+            everything else, so squeezing the two handles together bends the cell and nothing else. The printed v4.2 design is shown first; the
+            earlier v4.1, v4 and v3 Split-Grip designs are one click away.
           </p>
         </div>
 
@@ -465,7 +446,7 @@ function Device() {
             <dt>Fasteners</dt>
             <dd>6 × M6 × 25 button heads into the cell, 4 × M3 for the cover</dd>
             <dt>CAD</dt>
-            <dd>CadQuery Python scripts + Onshape STEP assemblies for both the v3 Split-Grip and v4 Jamar-style 5-position prototype</dd>
+            <dd>CadQuery Python scripts + STEP assemblies for the v3 Split-Grip and the v4, v4.1 and v4.2 Jamar-style 5-position designs</dd>
             <dt>Load limit</dt>
             <dd>Printed parts are not yet tested above 34 kg (75 lb), so calibration loads stay below that</dd>
           </dl>

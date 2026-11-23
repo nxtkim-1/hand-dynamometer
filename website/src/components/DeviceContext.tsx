@@ -1,7 +1,7 @@
 // One device connection for the whole site, so moving between pages does not drop the USB link.
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import { GripDevice, serialSupported } from "../lib/device";
+import { getStoredReverse, GripDevice, serialSupported, setStoredReverse } from "../lib/device";
 
 type Status = "unsupported" | "idle" | "connecting" | "connected" | "error";
 
@@ -11,6 +11,9 @@ interface DeviceState {
   message: string;
   connect: () => Promise<void>;
   disconnect: () => Promise<void>;
+  /** Readings are sign-flipped in the browser (the cell sits the other way round in this frame). */
+  reversed: boolean;
+  setReversed: (on: boolean) => void;
 }
 
 const Ctx = createContext<DeviceState | null>(null);
@@ -20,6 +23,13 @@ export function DeviceProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<Status>(serialSupported() ? "idle" : "unsupported");
   const [message, setMessage] = useState("");
   const deviceRef = useRef<GripDevice | null>(null);
+  const [reversed, setReversedState] = useState(getStoredReverse);
+
+  const setReversed = useCallback((on: boolean) => {
+    setStoredReverse(on);
+    setReversedState(on);
+    if (deviceRef.current) deviceRef.current.reversed = on;
+  }, []);
 
   const connect = useCallback(async () => {
     setStatus("connecting");
@@ -63,7 +73,7 @@ export function DeviceProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => () => void deviceRef.current?.close(), []);
 
-  return <Ctx.Provider value={{ device, status, message, connect, disconnect }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ device, status, message, connect, disconnect, reversed, setReversed }}>{children}</Ctx.Provider>;
 }
 
 export function useDevice(): DeviceState {
@@ -84,4 +94,18 @@ export function useLiveForce(device: GripDevice | null): number | null {
     return () => clearInterval(id);
   }, [device]);
   return kg;
+}
+
+/** True while the device has recently read clearly below zero (reversed direction or a bad zero). */
+export function useNegativeReading(device: GripDevice | null): boolean {
+  const [seen, setSeen] = useState(false);
+  useEffect(() => {
+    if (!device) {
+      setSeen(false);
+      return;
+    }
+    const id = setInterval(() => setSeen(device.negativeSeen), 300);
+    return () => clearInterval(id);
+  }, [device]);
+  return seen;
 }

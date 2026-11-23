@@ -19,6 +19,7 @@ tick tasks off as they are done; this file is loaded into every Claude Code sess
 | v4.2 Jamar-style parts | **Printed** (reported 2026-11-22), not assembled | design frozen; checks in `cad/evidence_v4_2/` (53/53 geometric) |
 | v4.2 proof load + calibration | Not done | plan in `docs/15_calibration_v4_2.md`; needs cable length and inspection sheet first |
 | Host pipeline + analysis (`software/pipeline.py`, `analysis.py`) | Done 2026-11-22 | 33 tests on simulated data only |
+| Squeeze direction on v4.2 | **Reads negative with SIGN = -1** (reported 2026-11-23) | firmware changed to `SIGN = 1`, not yet uploaded or checked; website has a Reverse direction button meanwhile |
 
 ## To do, in order
 

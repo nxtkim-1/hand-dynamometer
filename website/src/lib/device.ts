@@ -2,10 +2,32 @@
 // Firmware facts: 115200 baud, prints "t_ms,raw,net,force_kg", re-zeroes on "T" and replies "# tared".
 // Opening the port restarts the Nano, which tares itself on boot, so we wait for its first data line.
 
-import { parseCalibrationComment, parseLine } from "./parse";
+import { NEGATIVE_WARN_KG, parseCalibrationComment, parseLine, reverseLine } from "./parse";
 import { BAUD } from "./protocol";
 
 export const serialSupported = () => typeof navigator !== "undefined" && "serial" in navigator;
+
+// Which way the load cell sits depends on the frame: SIGN = -1 was right for the v3 barrel, but a frame
+// that bends the cell the other way reads negative on a squeeze. Reversing here is the same as flipping
+// SIGN in the firmware, without re-uploading it. Remembered in this browser only.
+const REVERSE_KEY = "gripcheck.reverseDirection";
+
+export function getStoredReverse(): boolean {
+  try {
+    return localStorage.getItem(REVERSE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function setStoredReverse(on: boolean) {
+  try {
+    if (on) localStorage.setItem(REVERSE_KEY, "1");
+    else localStorage.removeItem(REVERSE_KEY);
+  } catch {
+    /* private window: the setting lasts until the page closes */
+  }
+}
 
 type LineListener = (line: string) => void;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -20,6 +42,10 @@ export class GripDevice {
   /** Called once if the cable is pulled or the port fails. */
   onLost: (() => void) | null = null;
   lastForceKg = 0;
+  /** Flip net and force on every data line (see REVERSE_KEY). */
+  private reversedFlag = getStoredReverse();
+  /** True once a reading has gone clearly below zero since the last zero or direction change. */
+  negativeSeen = false;
 
   private constructor(port: SerialPort) {
     this.port = port;
@@ -75,12 +101,28 @@ export class GripDevice {
     }
   }
 
-  private handleLine(line: string) {
-    const cal = parseCalibrationComment(line);
+  private handleLine(rawLine: string) {
+    const cal = parseCalibrationComment(rawLine);
     if (cal) this.calibration = cal;
+    // every listener (live graph, recording, saved CSV) sees the corrected line
+    const line = this.reversedFlag ? reverseLine(rawLine) : rawLine;
     const p = parseLine(line);
-    if (p) this.lastForceKg = p.f;
+    if (p) {
+      this.lastForceKg = p.f;
+      if (p.f < NEGATIVE_WARN_KG) this.negativeSeen = true;
+    }
     for (const fn of this.listeners) fn(line);
+  }
+
+  get reversed() {
+    return this.reversedFlag;
+  }
+
+  set reversed(on: boolean) {
+    if (on === this.reversedFlag) return;
+    this.reversedFlag = on;
+    this.negativeSeen = false;
+    this.lastForceKg = -this.lastForceKg;
   }
 
   /** Listen to every line. Returns a function that stops listening. */
@@ -120,6 +162,7 @@ export class GripDevice {
     await this.send("T");
     const confirmed = await this.waitFor((line) => line.startsWith("# tared"), 5000);
     if (!confirmed) await sleep(500); // older firmware without the reply: the fixed wait has passed
+    this.negativeSeen = false;
   }
 
   /** Collect raw lines for a number of seconds. onLine sees each line as it arrives (for the live graph). */

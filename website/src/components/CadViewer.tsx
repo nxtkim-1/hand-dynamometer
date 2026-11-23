@@ -1,6 +1,6 @@
 // Interactive 3D CAD viewer (Three.js + binary STLs tessellated from the CadQuery STEP assemblies).
-// Shows both the current v3 Split-Grip design and the v4 Jamar-style concept prototype,
-// with orbit/zoom, exploded view, X-ray housing, squeeze deflection demo, and Jamar 5-position span adjustment.
+// Shows the printed v4.2 Jamar-style design first, with every earlier design (v4.1, v4, v3) one click away,
+// with orbit/zoom, exploded view, X-ray housing, squeeze deflection demo, and the 5-position palm bar.
 
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
@@ -9,8 +9,13 @@ import { STLLoader } from "three/examples/jsm/loaders/STLLoader.js";
 import { toCreasedNormals } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { IconRefresh } from "./Icons";
 
-export type CadDesignId = "v3" | "jamar";
+export type CadDesignId = "v42" | "v41" | "jamar" | "v3";
 export type ViewPreset = "iso" | "side" | "front" | "top";
+
+/** The design that was printed: shown first everywhere. */
+export const MAIN_DESIGN: CadDesignId = "v42";
+/** Earlier designs, newest first, one click away. */
+export const PREVIOUS_DESIGNS: CadDesignId[] = ["v41", "jamar", "v3"];
 
 interface PartMeta {
   id: string;
@@ -23,33 +28,164 @@ interface PartMeta {
   squeezeDir?: [number, number, number];
 }
 
+/** Adjustable palm bar: the STL is exported at `defaultIdx`; `dx[i]` is its X position (mm) at setting i. */
+interface PalmSettings {
+  dx: number[];
+  label: (i: number) => string;
+  defaultIdx: number;
+}
+
 interface DesignSpec {
   id: CadDesignId;
   name: string;
+  short: string;
   badge: string;
   statusTag: string;
-  statusTone: "ok" | "accent";
+  statusTone: "ok" | "accent" | "warn" | "";
   summary: string;
   dimensions: string;
   center: [number, number, number];
   camDist: number;
+  layout: "v3" | "jamar";
+  electronics: "v3" | "v4" | "v42";
+  palm?: PalmSettings;
   parts: PartMeta[];
 }
 
-const JAMAR_GAPS = [26, 36, 46, 56, 66] as const; // mm bar-to-bar gap (pos 1..5); STL exported at pos 2 (36 mm)
+const CELL_PART: PartMeta = {
+  id: "cell",
+  label: "CZL601 100 kg cell",
+  role: "Stands upright inside the spine · the only force path between palm and fingers",
+  color: "#229e89",
+  explode: [0, 0, 0],
+};
+
+const ELECTRONICS_PART: PartMeta = {
+  id: "electronics",
+  label: "Nano + HX711",
+  role: "Arduino Nano and the 24-bit ADC in the fixed bay · USB out the back",
+  color: "#2d6cdf",
+  explode: [0, 18, -22],
+};
+
+type JamarNames = { frame: string; palm: string; finger: string; cover: string; guard: string };
+
+// Every Jamar-family design shares one CAD origin (load cell at x 0..22, z 0..130), so only files and text change.
+function jamarParts(prefix: string, files: JamarNames, roles: JamarNames): PartMeta[] {
+  const file = (name: string) => `/models/${prefix}${name}.stl`;
+  return [
+    { id: "frame", label: "Main C-frame", role: roles.frame, color: "#c5cad3", file: file(files.frame), isShell: true, explode: [18, 0, 0] },
+    { id: "palm_bar", label: "Palm bar", role: roles.palm, color: "#9aa2ad", file: file(files.palm), isShell: true, explode: [-42, 0, 0] },
+    {
+      id: "finger_part",
+      label: "Finger part",
+      role: roles.finger,
+      color: "#3b424d",
+      file: file(files.finger),
+      isShell: true,
+      explode: [-22, 0, 26],
+      squeezeDir: [1, 0, 0],
+    },
+    { id: "cover", label: "Electronics pod cover", role: roles.cover, color: "#4a515d", file: file(files.cover), isShell: true, explode: [0, 44, 0] },
+    { id: "guard", label: "Load-cell guard", role: roles.guard, color: "#4a515d", file: file(files.guard), isShell: true, explode: [0, -34, 0] },
+    CELL_PART,
+    ELECTRONICS_PART,
+  ];
+}
+
+const V4X_FILES: JamarNames = { frame: "frame", palm: "palm_bar", finger: "finger_part", cover: "pod_cover", guard: "guard_left" };
+const V42_SPANS = [44, 56, 68, 80, 92]; // outer span, mm (v4.2 source OUTER_SPANS, 12 mm pitch)
+const V41_GAPS = [28, 35, 42, 49, 56]; // clear distance palm pad to finger crest, mm (7 mm pitch)
+const V40_GAPS = [26, 36, 46, 56, 66]; // bar-to-bar gap, mm (10 mm pitch)
 
 const DESIGNS: Record<CadDesignId, DesignSpec> = {
-  v3: {
-    id: "v3",
-    name: "v3 Split-Grip (Current)",
-    badge: "Built & reading · PETG",
-    statusTag: "Active build",
+  v42: {
+    id: "v42",
+    name: "v4.2 Jamar-Style (Printed)",
+    short: "v4.2 · printed",
+    badge: "53/53 geometry checks",
+    statusTag: "Current · printed",
     statusTone: "ok",
     summary:
-      "Barrel handle split lengthwise by a 3 mm seam. The palm half and closed electronics base bolt to the bottom of the load cell; the finger half floats on the top end.",
+      "The design that was printed. Palm and finger contours face the squeeze, the four-finger window is about 88 mm tall, and at all five settings the palm bar bears on a keyed seat in the frame after 0.35 mm, so the M5 bolts only locate it. 17 mm shorter than v4.1 because the coil bay was removed. Checked on the CAD geometry only: not yet proof-loaded or calibrated.",
+    dimensions: "181 × 67 × 214 mm",
+    center: [-34, 7.5, 49],
+    camDist: 525,
+    layout: "jamar",
+    electronics: "v42",
+    palm: { dx: [12, 0, -12, -24, -36], label: (i) => `${V42_SPANS[i]} mm span`, defaultIdx: 1 },
+    parts: jamarParts("v42_", V4X_FILES, {
+      frame: "Fixed body · holds the load cell, the Nano bay and the keyed palm seats",
+      palm: "5 settings, 12 mm apart (44–92 mm outer span) · keyed lugs carry the load, M5 bolts locate",
+      finger: "Moving handle · about 88 mm four-finger window · 17 mm free travel before it touches anything fixed",
+      cover: "Closes the electronics bay · sized for about 8 cm of load-cell cable (real length not yet measured)",
+      guard: "Covers the cell flank across a 3.2 mm air gap (M3 screws)",
+    }),
+  },
+  v41: {
+    id: "v41",
+    name: "v4.1 Jamar-Style (Superseded)",
+    short: "v4.1",
+    badge: "Coil bay · 5 settings",
+    statusTag: "Superseded 2026-11-22",
+    statusTone: "warn",
+    summary:
+      "Added a deep coil bay under the electronics for a long load-cell cable. Replaced by v4.2 because its own holding-view sections showed the palm pad and finger scallops facing the empty gap, and the upper bracket blocking the index and middle fingers. Never printed.",
+    dimensions: "195 × 67 × 231 mm",
+    center: [-41.5, 7.5, 40.5],
+    camDist: 560,
+    layout: "jamar",
+    electronics: "v4",
+    palm: { dx: [7, 0, -7, -14, -21], label: (i) => `${V41_GAPS[i]} mm gap`, defaultIdx: 1 },
+    parts: jamarParts("v41_", V4X_FILES, {
+      frame: "Fixed body with the deep coil bay (down to z −75 mm)",
+      palm: "5 settings, 7 mm apart (28–56 mm clear gap) · M5 bolts with captive nuts",
+      finger: "Moving handle · scallops face away from the hand (the reason it was replaced)",
+      cover: "Electronics and coil pod · cable coiled at about R 8 mm",
+      guard: "Covers the cell flank across a 3.2 mm air gap",
+    }),
+  },
+  jamar: {
+    id: "jamar",
+    name: "v4 Jamar-Style (First Draft)",
+    short: "v4",
+    badge: "0 supports · 5-pos span",
+    statusTag: "Superseded",
+    statusTone: "",
+    summary:
+      "First two-handle Jamar-style layout, drawn for flat-bed, support-free PETG printing (max 36 mm Z-height): a 4-finger trigger, a palm bar with captive M5 nuts, and an enclosed electronics and cable pod. Reworked into v4.1 and then v4.2.",
+    dimensions: "202 × 67 × 211 mm",
+    center: [-45, 7.5, 50],
+    camDist: 525,
+    layout: "jamar",
+    electronics: "v4",
+    palm: { dx: V40_GAPS.map((g) => V40_GAPS[1] - g), label: (i) => `${V40_GAPS[i]} mm gap`, defaultIdx: 1 },
+    parts: jamarParts(
+      "jamar_",
+      { frame: "frame", palm: "palm_bar", finger: "finger", cover: "cover", guard: "guard" },
+      {
+        frame: "Fixed body · prints flat in 36 mm Z · holds cell, Nano and 5 lock holes",
+        palm: "Convex palm arch · captive M5 hex nuts across 5 spans (26–66 mm gap)",
+        finger: "Moving handle · contoured scallops and swept bracket across a 3.5 mm gap",
+        cover: "18.5 mm cable bay and coil well · 4 × M3 countersunk screws",
+        guard: "Encloses the cell flank across a 3.2 mm bending air gap (4 × M3)",
+      },
+    ),
+  },
+  v3: {
+    id: "v3",
+    name: "v3 Split-Grip",
+    short: "v3",
+    badge: "Built & reading · PETG",
+    statusTag: "Previous build · G2 passed",
+    statusTone: "",
+    summary:
+      "Barrel handle split lengthwise by a 3 mm seam. The palm half and closed electronics base bolt to the bottom of the load cell; the finger half floats on the top end. The first build that read a squeeze (G2, 2026-11-12).",
     dimensions: "57 × 82 × 204 mm",
     center: [11, 0, 50],
     camDist: 470,
+    layout: "v3",
+    electronics: "v3",
     parts: [
       {
         id: "palm",
@@ -79,97 +215,44 @@ const DESIGNS: Record<CadDesignId, DesignSpec> = {
         isShell: true,
         explode: [0, 0, -46],
       },
-      {
-        id: "cell",
-        label: "CZL601 100 kg cell",
-        role: "Single-point parallel beam · sole force path between halves",
-        color: "#229e89",
-        explode: [0, 0, 0],
-      },
-      {
-        id: "electronics",
-        label: "Nano + HX711",
-        role: "Arduino Nano & 24-bit ADC inside the fixed base",
-        color: "#2d6cdf",
-        explode: [0, 0, -24],
-      },
-    ],
-  },
-  jamar: {
-    id: "jamar",
-    name: "v4 Jamar-Style (Print-Ready)",
-    badge: "0 supports · 5-pos span",
-    statusTag: "Print-ready",
-    statusTone: "accent",
-    summary:
-      "Ergonomic clinical two-handle dynamometer engineered for flat-bed support-free PETG printing (max 36 mm Z-height). Features a 4-finger trigger, contoured palm bar with captive M5 nuts, and enclosed electronics + uncut cable pod.",
-    dimensions: "202 × 67 × 211 mm",
-    center: [-45, 7.5, 50],
-    camDist: 525,
-    parts: [
-      {
-        id: "frame",
-        label: "Main C-frame + truss arms",
-        role: "Fixed body · prints flat in 36 mm Z · holds cell, Nano & 5 lock holes",
-        color: "#c5cad3",
-        file: "/models/jamar_frame.stl",
-        isShell: true,
-        explode: [18, 0, 0],
-      },
-      {
-        id: "palm_bar",
-        label: "Ergonomic palm bar",
-        role: "Convex palm arch · captive M5 hex nuts across 5 spans (26–66 mm gap)",
-        color: "#9aa2ad",
-        file: "/models/jamar_palm_bar.stl",
-        isShell: true,
-        explode: [-42, 0, 0],
-      },
-      {
-        id: "finger_part",
-        label: "4-finger sculpted trigger",
-        role: "Moving handle · contoured scallops + swept bracket across 3.5 mm gap",
-        color: "#3b424d",
-        file: "/models/jamar_finger.stl",
-        isShell: true,
-        explode: [-22, 0, 26],
-        squeezeDir: [1, 0, 0],
-      },
-      {
-        id: "cover",
-        label: "Right electronics + cable pod",
-        role: "18.5 mm cable bay + coil well · 4 × M3 countersunk screws",
-        color: "#4a515d",
-        file: "/models/jamar_cover.stl",
-        isShell: true,
-        explode: [0, 44, 0],
-      },
-      {
-        id: "guard",
-        label: "Left load-cell guard",
-        role: "Encloses cell flank across 3.2 mm bending air gap (4 × M3)",
-        color: "#4a515d",
-        file: "/models/jamar_guard.stl",
-        isShell: true,
-        explode: [0, -34, 0],
-      },
-      {
-        id: "cell",
-        label: "CZL601 100 kg cell",
-        role: "Stands upright inside spine · sole force path between palm & fingers",
-        color: "#229e89",
-        explode: [0, 0, 0],
-      },
-      {
-        id: "electronics",
-        label: "Nano + HX711",
-        role: "Arduino Nano & 24-bit ADC inside fixed bay · rear octagonal USB port",
-        color: "#2d6cdf",
-        explode: [0, 18, -22],
-      },
+      { ...CELL_PART, role: "Single-point parallel beam · sole force path between halves" },
+      { ...ELECTRONICS_PART, role: "Arduino Nano & 24-bit ADC inside the fixed base", explode: [0, 0, -24] },
     ],
   },
 };
+
+/** Main design as a tab, earlier designs as a row of smaller chips. Used by the viewer and the home hero. */
+export function DesignPicker({ design, onChange }: { design: CadDesignId; onChange: (id: CadDesignId) => void }) {
+  return (
+    <div className="design-picker">
+      <div className="pill-tabs" role="group" aria-label="Current design">
+        <button
+          type="button"
+          aria-pressed={design === MAIN_DESIGN}
+          className={`pill-tab${design === MAIN_DESIGN ? " active" : ""}`}
+          onClick={() => onChange(MAIN_DESIGN)}
+        >
+          {DESIGNS[MAIN_DESIGN].short}
+        </button>
+      </div>
+      <div className="design-previous" role="group" aria-label="Earlier designs">
+        <span className="small muted">Earlier:</span>
+        {PREVIOUS_DESIGNS.map((id) => (
+          <button
+            key={id}
+            type="button"
+            aria-pressed={design === id}
+            className={`cad-chip-btn${design === id ? " active" : ""}`}
+            onClick={() => onChange(id)}
+            title={DESIGNS[id].name}
+          >
+            {DESIGNS[id].short}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 const stlBufferCache = new Map<string, Promise<ArrayBuffer>>();
 
@@ -258,13 +341,13 @@ function buildLoadCellGroup(): THREE.Group {
 }
 
 /** Procedural Arduino Nano + HX711 inside the active design's fixed electronics bay (exact CAD coordinates). */
-function buildElectronicsGroup(design: CadDesignId): THREE.Group {
+function buildElectronicsGroup(kind: DesignSpec["electronics"]): THREE.Group {
   const g = new THREE.Group();
   const nanoMat = new THREE.MeshStandardMaterial({ color: "#2d6cdf", roughness: 0.4, metalness: 0.2 });
   const usbMat = new THREE.MeshStandardMaterial({ color: "#aeb6c2", roughness: 0.25, metalness: 0.8 });
   const hxMat = new THREE.MeshStandardMaterial({ color: "#1d9a57", roughness: 0.45, metalness: 0.15 });
 
-  if (design === "v3") {
+  if (kind === "v3") {
     const nano = new THREE.Mesh(new THREE.BoxGeometry(44, 18.1, 3.2), nanoMat);
     nano.position.set(10, -22.2, -38.2);
     g.add(nano);
@@ -277,17 +360,19 @@ function buildElectronicsGroup(design: CadDesignId): THREE.Group {
     hx.position.set(11, -36.5, -6);
     g.add(hx);
   } else {
-    // Jamar v4: Nano on -y bay rail along X, USB pointing +x rear window; HX711 above Nano along front bay
+    // Jamar family: Nano on the -y bay rail along X, USB out the +x rear window; HX711 upright in the front bay.
+    // v4.2 sits 4 mm lower (its hardware envelopes: Nano z -46.1..-27.9, HX711 z -22..-6).
+    const low = kind === "v42" ? 4 : 0;
     const nano = new THREE.Mesh(new THREE.BoxGeometry(44, 3.2, 18.1), nanoMat);
-    nano.position.set(20.2, -4.9, -33.0);
+    nano.position.set(20.2, -4.9, -33.0 - low);
     g.add(nano);
 
     const usb = new THREE.Mesh(new THREE.BoxGeometry(6, 3.8, 7.8), usbMat);
-    usb.position.set(41.2, -2.2, -33.0);
+    usb.position.set(41.2, -2.2, -33.0 - low);
     g.add(usb);
 
     const hx = new THREE.Mesh(new THREE.BoxGeometry(4, 24, 16), hxMat);
-    hx.position.set(-0.7, -2.0, -11.5);
+    hx.position.set(-0.7, kind === "v42" ? 0 : -2.0, kind === "v42" ? -14 : -11.5);
     g.add(hx);
   }
   return g;
@@ -302,7 +387,7 @@ export interface CadViewerProps {
 export function CadViewer({ variant = "full", design: controlledDesign, onDesignChange }: CadViewerProps) {
   const isHero = variant === "hero";
   const hostRef = useRef<HTMLDivElement>(null);
-  const [internalDesign, setInternalDesign] = useState<CadDesignId>("v3");
+  const [internalDesign, setInternalDesign] = useState<CadDesignId>(MAIN_DESIGN);
   const design = controlledDesign ?? internalDesign;
   const setDesign = (id: CadDesignId) => {
     if (controlledDesign === undefined) setInternalDesign(id);
@@ -312,7 +397,7 @@ export function CadViewer({ variant = "full", design: controlledDesign, onDesign
   const [explode, setExplode] = useState(0); // 0..100
   const [xray, setXray] = useState(false);
   const [squeeze, setSqueeze] = useState(false);
-  const [jamarPos, setJamarPos] = useState(1); // 0..4 (default position 2 = 36 mm gap)
+  const [jamarPos, setJamarPos] = useState(1); // palm setting index 0..4 (the STLs are exported at index 1)
   const [selectedPart, setSelectedPart] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -358,7 +443,7 @@ export function CadViewer({ variant = "full", design: controlledDesign, onDesign
       case "iso":
       default:
         pos =
-          design === "v3"
+          DESIGNS[design].layout === "v3"
             ? new THREE.Vector3(d * 0.62, d * 0.24, d * 0.74)
             : new THREE.Vector3(-d * 0.44, d * 0.28, d * 0.85);
         break;
@@ -519,9 +604,8 @@ export function CadViewer({ variant = "full", design: controlledDesign, onDesign
         let dy = meta.explode[1] * expFrac;
         let dz = meta.explode[2] * expFrac;
 
-        if (st.design === "jamar" && meta.id === "palm_bar") {
-          dx += JAMAR_GAPS[1] - JAMAR_GAPS[st.jamarPos];
-        }
+        const palm = DESIGNS[st.design].palm;
+        if (palm && meta.id === "palm_bar") dx += palm.dx[st.jamarPos] - palm.dx[palm.defaultIdx];
         if (meta.squeezeDir && pulse > 0) {
           // Visualise 1.6 mm deflection along the squeeze axis so the 3 mm isolation gap stays clear
           dx += meta.squeezeDir[0] * pulse * 1.6;
@@ -606,7 +690,7 @@ export function CadViewer({ variant = "full", design: controlledDesign, onDesign
         r!.modelGroup.add(cell);
         r!.parts.set("cell", { obj: cell, meta: cellMeta, basePos: cell.position.clone(), mats: cellMats });
 
-        const elec = buildElectronicsGroup(design);
+        const elec = buildElectronicsGroup(activeSpec.electronics);
         elec.userData.partId = "electronics";
         const elecMats: THREE.MeshStandardMaterial[] = [];
         elec.traverse((c) => {
@@ -664,8 +748,22 @@ export function CadViewer({ variant = "full", design: controlledDesign, onDesign
     };
   }, [design]);
 
-  const jamarGapMm = JAMAR_GAPS[jamarPos];
-  const jamarOuterSpanMm = jamarGapMm + 20 + 24; // PB_T (20) + finger bar depth (24)
+  const palm = spec.palm;
+  const palmLabel = palm ? palm.label(jamarPos) : "";
+  const palmButtons = palm
+    ? palm.dx.map((_, i) => (
+        <button
+          key={i}
+          type="button"
+          style={isHero ? undefined : { flex: 1 }}
+          className={`pill-tab${jamarPos === i ? " active" : ""}`}
+          onClick={() => setJamarPos(i)}
+          title={`Setting ${i + 1}: ${palm.label(i)}`}
+        >
+          {i + 1}
+        </button>
+      ))
+    : null;
 
   const stageEl = (
     <div className="cad-stage">
@@ -768,23 +866,13 @@ export function CadViewer({ variant = "full", design: controlledDesign, onDesign
               {squeeze ? "Squeezing" : "Squeeze"}
             </button>
           </div>
-          {design === "jamar" && (
+          {palm && (
             <div className="cad-hero-bar-row">
-              <span className="small muted">Jamar span:</span>
-              <div className="pill-tabs" role="group" aria-label="Jamar handle position">
-                {JAMAR_GAPS.map((gap, i) => (
-                  <button
-                    key={gap}
-                    type="button"
-                    className={`pill-tab${jamarPos === i ? " active" : ""}`}
-                    onClick={() => setJamarPos(i)}
-                    title={`Position ${i + 1}: ${gap} mm bar-to-bar gap`}
-                  >
-                    {i + 1}
-                  </button>
-                ))}
+              <span className="small muted">Palm setting:</span>
+              <div className="pill-tabs" role="group" aria-label="Palm bar setting">
+                {palmButtons}
               </div>
-              <span className="mono small muted">{jamarGapMm} mm gap</span>
+              <span className="mono small muted">{palmLabel}</span>
             </div>
           )}
         </div>
@@ -799,6 +887,7 @@ export function CadViewer({ variant = "full", design: controlledDesign, onDesign
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
             <span className="eyebrow">Interactive 3D CAD</span>
             <span className={`tag ${spec.statusTone}`}>{spec.statusTag}</span>
+            <span className="tag">{spec.badge}</span>
             <span className="tag mono">{spec.dimensions}</span>
           </div>
           <h3>{spec.name}</h3>
@@ -807,20 +896,7 @@ export function CadViewer({ variant = "full", design: controlledDesign, onDesign
           </p>
         </div>
 
-        <div className="pill-tabs" role="tablist" aria-label="Choose CAD design">
-          {(["v3", "jamar"] as CadDesignId[]).map((id) => (
-            <button
-              key={id}
-              type="button"
-              role="tab"
-              aria-selected={design === id}
-              className={`pill-tab${design === id ? " active" : ""}`}
-              onClick={() => setDesign(id)}
-            >
-              {id === "v3" ? "v3 Split-Grip (Current)" : "v4 Jamar-Style (Print-Ready)"}
-            </button>
-          ))}
-        </div>
+        <DesignPicker design={design} onChange={setDesign} />
       </div>
 
       <div className="cad-body">
@@ -864,29 +940,18 @@ export function CadViewer({ variant = "full", design: controlledDesign, onDesign
             </button>
           </div>
 
-          {design === "jamar" && (
+          {palm && (
             <div className="cad-control-group">
               <div className="cad-control-row">
                 <span>
-                  <b>Jamar span position</b>
+                  <b>Palm bar setting</b>
                 </span>
                 <span className="mono small muted">
-                  Pos {jamarPos + 1} · {jamarGapMm} mm gap ({jamarOuterSpanMm} mm outer)
+                  Setting {jamarPos + 1} · {palmLabel}
                 </span>
               </div>
-              <div className="pill-tabs" style={{ width: "100%" }} role="group" aria-label="Jamar handle position">
-                {JAMAR_GAPS.map((gap, i) => (
-                  <button
-                    key={gap}
-                    type="button"
-                    style={{ flex: 1 }}
-                    className={`pill-tab${jamarPos === i ? " active" : ""}`}
-                    onClick={() => setJamarPos(i)}
-                    title={`Position ${i + 1}: ${gap} mm bar-to-bar gap`}
-                  >
-                    {i + 1}
-                  </button>
-                ))}
+              <div className="pill-tabs" style={{ width: "100%" }} role="group" aria-label="Palm bar setting">
+                {palmButtons}
               </div>
             </div>
           )}

@@ -26,9 +26,11 @@ const int PIN_SCK  = 2;   // HX711 SCK
 // After G3 (hanging known masses) replace it with the fitted value from software/calibrate.py.
 const float COUNTS_PER_KG = 42952.0;
 
-// Your cell read NEGATIVE when pressed on the bench, so this starts at -1.
-// If a squeeze of the assembled grip still shows a negative 'net', change it to 1.
-const int SIGN = -1;
+// Which way the cell bends depends on the frame it sits in:
+//   v3 barrel grip:      SIGN = -1  (the bare cell read negative when pressed, verified 2026-11-12)
+//   v4.2 Jamar frame:    SIGN = +1  (a squeeze read negative with -1, reported 2026-11-23)
+// Rule: squeeze the handle. If 'net' goes negative, flip this sign and upload again.
+const int SIGN = 1;
 // -------------------------------------------------------------------
 
 HX711 scale;
