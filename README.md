@@ -225,6 +225,8 @@ The software has been developed and tested using simulated signals. Validation o
 
 Results will be added to this section once the hardware is complete.
 
+**Design and verification report:** [`docs/report/gripcheck_report.pdf`](docs/report/gripcheck_report.pdf) (GC-TR-002 Rev 1.0, LaTeX source alongside). It covers the v4.2 design, requirements and their verification status, risk summary, standards assessment and every verification test so far. The v4.2 proof load (VT-09) and calibration (VT-10) are **not yet tested**: their protocol and pass criteria are fixed in the report before testing, and the bench procedure with expected readings is in [`docs/16_vt10_bench_guide.md`](docs/16_vt10_bench_guide.md).
+
 ---
 
 ## Limitations
