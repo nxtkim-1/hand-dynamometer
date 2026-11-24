@@ -58,7 +58,7 @@ export default function HomePage() {
 // ---------------------------------------------------------------- hero
 
 function Hero() {
-  const [heroMode, setHeroMode] = useState<"cad" | "curve">("cad");
+  const [heroMode, setHeroMode] = useState<"photo" | "cad" | "curve">("photo");
   const [heroDesign, setHeroDesign] = useState<CadDesignId>(MAIN_DESIGN);
 
   return (
@@ -100,10 +100,21 @@ function Hero() {
           <div className="hero-visual-bar">
             {heroMode === "cad" ? (
               <DesignPicker design={heroDesign} onChange={setHeroDesign} />
+            ) : heroMode === "photo" ? (
+              <span className="eyebrow">v4.2 as built</span>
             ) : (
               <span className="eyebrow">Simulated squeeze</span>
             )}
             <div className="pill-tabs" role="tablist" aria-label="Hero preview mode">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={heroMode === "photo"}
+                className={`pill-tab${heroMode === "photo" ? " active" : ""}`}
+                onClick={() => setHeroMode("photo")}
+              >
+                Photo
+              </button>
               <button
                 type="button"
                 role="tab"
@@ -125,7 +136,13 @@ function Hero() {
             </div>
           </div>
 
-          {heroMode === "cad" ? (
+          {heroMode === "photo" ? (
+            <img
+              src={`${import.meta.env.BASE_URL}images/photo_device_grip.jpg`}
+              alt="The printed v4.2 GripCheck dynamometer held in the hand: palm on the palm bar, four fingers around the finger part, load cell and black electronics pod on the right"
+              style={{ aspectRatio: "3 / 4", maxHeight: 560, width: "100%", objectFit: "cover", borderRadius: "0 0 22px 22px" }}
+            />
+          ) : heroMode === "cad" ? (
             <CadViewer variant="hero" design={heroDesign} onDesignChange={setHeroDesign} />
           ) : (
             <div style={{ padding: "8px 4px 4px" }}>
@@ -415,17 +432,23 @@ function Device() {
 
         <div className="two-col">
           <div className="gallery" style={{ gridTemplateColumns: "1fr 1fr" }}>
-            <figure className="figure" style={{ gridColumn: "span 2" }}>
+            <figure className="figure">
               <div className="frame">
-                <img className="render" src={`${import.meta.env.BASE_URL}images/compact_v3_section.png`} alt="Section view of the v3 dynamometer showing the load cell between the palm and finger halves" loading="lazy" />
+                <img src={`${import.meta.env.BASE_URL}images/photo_device_side.jpg`} alt="The assembled v4.2 dynamometer from the side: white C-frame, palm bar and finger part, load cell visible at the top" loading="lazy" />
               </div>
-              <figcaption>Section through the v3 design: the cell is the only path between the two halves.</figcaption>
+              <figcaption>v4.2 as built: the finger part hangs from the free end of the cell and touches nothing else.</figcaption>
             </figure>
             <figure className="figure">
               <div className="frame">
-                <img className="render" src={`${import.meta.env.BASE_URL}images/compact_v3_inside.png`} alt="Inside the electronics box, with the Arduino Nano and HX711 board" loading="lazy" />
+                <img src={`${import.meta.env.BASE_URL}images/photo_device_rear_usb.jpg`} alt="The electronics pod side of the device, with three M6 bolt heads and the USB port" loading="lazy" />
               </div>
-              <figcaption>The 57 × 82 mm base holds the Nano, HX711 and coiled cable.</figcaption>
+              <figcaption>Pod side: three M6 bolts hold the cell; the Nano's USB port is at the bottom.</figcaption>
+            </figure>
+            <figure className="figure">
+              <div className="frame">
+                <img src={`${import.meta.env.BASE_URL}images/photo_assembly_cell.jpg`} alt="The load cell bolted into the white printed frame during assembly" loading="lazy" />
+              </div>
+              <figcaption>Assembly: the load cell bolted into the frame before the finger part and covers go on.</figcaption>
             </figure>
             <figure className="figure">
               <div className="frame">
@@ -442,9 +465,9 @@ function Device() {
             <dt>Controller</dt>
             <dd>Arduino Nano (ATmega328P), USB serial at 115200 baud</dd>
             <dt>Body</dt>
-            <dd>Printed PETG, split barrel handle on a closed 57 × 82 mm base, about 204 mm tall</dd>
+            <dd>Printed PETG C-frame (v4.2), 181 × 67 × 214 mm, palm bar with 5 keyed settings (44–92 mm outer span), closed electronics pod</dd>
             <dt>Fasteners</dt>
-            <dd>6 × M6 × 25 button heads into the cell, 4 × M3 for the cover</dd>
+            <dd>6 × M6 into the cell, M5 bolts locate the palm bar, M3 screws for the pod cover and cell guard</dd>
             <dt>CAD</dt>
             <dd>CadQuery Python scripts + STEP assemblies for the v3 Split-Grip and the v4, v4.1 and v4.2 Jamar-style 5-position designs</dd>
             <dt>Load limit</dt>
@@ -504,9 +527,10 @@ function Status() {
   const gates: [string, string, string, "done" | "next" | ""][] = [
     ["G0", "Printed parts fit the cell", "Fit coupon printed and checked, October 2026.", "done"],
     ["G1", "First signal on the bench", "Rest about +52,400 counts, noise about ±70 counts (≈2 g). Passed 6 Nov 2026.", "done"],
-    ["G2", "Assembled grip reads and returns to zero", "A squeeze reads positive and returns on release. Passed 12 Nov 2026.", "done"],
+    ["G2", "Assembled grip reads and returns to zero", "A squeeze reads positive and returns on release. Passed 12 Nov 2026 on v3.", "done"],
+    ["4.2", "v4.2 Jamar-style printed and assembled", "53/53 CAD checks, printed and built in November 2026. It read negative at first because the frame bends the cell the other way; the firmware sign is fixed.", "done"],
     ["→", "First full test with GripCheck on the device", "Zero, six squeezes, the 30 s hold and a report from the real Nano, logged in the build log.", "next"],
-    ["G3", "Calibration with known masses", "Fit counts per kg, linearity, hysteresis and repeatability up to 34 kg. Until then forces are datasheet estimates (about ±10 %).", "next"],
+    ["G3", "Calibration with known masses", "Hang four weighed loads up to about 30 kg, then one check weight: gives counts per kg and how accurate it is. Until then forces are datasheet estimates (about ±10 %).", "next"],
     ["V", "Agreement with a clinical device", "Paired tests against a Jamar dynamometer, analysed with Bland-Altman (bias and 95 % limits of agreement), not correlation alone.", ""],
   ];
   return (
@@ -519,6 +543,11 @@ function Status() {
             The device works end to end on the bench. Its forces are scaled from the load-cell datasheet, so they are estimates until gate G3 is done.
             Everything shown on this site that is labelled simulated was generated, not measured.
           </p>
+          <div className="btn-row" style={{ marginTop: 8 }}>
+            <a className="btn btn-secondary" href={`${REPO_URL}/blob/main/docs/report/gripcheck_report.pdf`} target="_blank" rel="noreferrer">
+              Design and verification report (PDF) <IconArrow />
+            </a>
+          </div>
         </div>
         <ol className="timeline">
           {gates.map(([g, title, text, state]) => (

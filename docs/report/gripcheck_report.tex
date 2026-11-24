@@ -112,7 +112,7 @@ Approved by & \textit{[name]} & Course instructor or supervisor & \\[4pt]
 Rev. & Date & Change \\
 \midrule
 0.9 & 2026-11-23 & Draft status report for the v3 hardware. \\
-1.0 & 2026-11-23 & Restructured as a design and verification report. Adds the v4.2 Jamar-style design, its CAD verification and first device findings; risk summary; standards assessment; verification records under test IDs; figure and media plan. \\
+1.0 & 2026-11-23 & Restructured as a design and verification report. Adds the v4.2 Jamar-style design, its CAD verification and first device findings; risk summary; standards assessment; verification records under test IDs; photographs of the built device; a single 20-minute VT-09/VT-10 session. \\
 \bottomrule
 \end{tabularx}
 
@@ -267,9 +267,17 @@ Operating limit & 34 kg (75 lb), pending proof load \\
 
 \begin{figure}[H]
 \centering
-\photoplaceholder{P1}{4.2cm}{v4.2 as built. Three-quarter view on a plain background, a ruler in frame for scale, same angle as Figure~\ref{fig:v42}a.}\\[6pt]
-\photoplaceholder{P2}{4.2cm}{Device in use in the ASHT position: seated, shoulder adducted, elbow at 90°, forearm neutral, wrist 0–30° extension. Side-on, whole arm in frame.}
-\caption{Photographs to be added before release.}
+\begin{minipage}[t]{0.32\linewidth}\centering
+  \includegraphics[height=6.4cm]{photo_device_grip.jpg}\\[-1pt]{\small (a) In the hand}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.32\linewidth}\centering
+  \includegraphics[height=6.4cm]{photo_device_side.jpg}\\[-1pt]{\small (b) Side, finger part on the cell}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.32\linewidth}\centering
+  \includegraphics[height=6.4cm]{photo_device_rear_usb.jpg}\\[-1pt]{\small (c) Pod side: 3 × M6, USB}
+\end{minipage}
+\caption{The v4.2 device as built, November 2026. Palm on the palm bar, four fingers round the finger part; the load cell (silver) and the black pod cover are on the right.}
+\label{fig:built}
 \end{figure}
 
 \paragraph{Intended use.} Measurement of peak and sustained grip force in an educational or research-practice setting, using a standardised protocol and comparison with published normative centiles.
@@ -445,35 +453,36 @@ VT-05 & v4.2 geometry, 53 automated checks (solids, watertight STLs, bed fit, in
 VT-06 & v4.2 assembled, first squeeze. Reading rises on squeeze & 2026-11-23 & Responds to squeeze but reads negative with \texttt{SIGN = -1}; chart drew nothing because axes start at 0 kg. Firmware changed to \texttt{SIGN = +1}, not yet uploaded & Nonconformance; corrective action open (\meas) \\
 VT-07 & v4.2 informal check loads & 2026-11-23 & Readings reported to agree with the datasheet prediction for 10–65 lb; individual values, hanger mass and run structure not recorded & Not accepted as calibration (\rep) \\
 VT-08 & Printed-part inspection: 13 features against accept ranges & — & Inspection sheet prepared & \nt \\
-VT-09 & Proof load 5 to 30 kg, 30 s steps; zero return within ±200 counts; 5 min creep at 30 kg & — & Protocol written & \nt \\
-VT-10 & Calibration and held-out check load (Section~\ref{sec:vt10}) & — & Protocol and acceptance criteria fixed & \nt \\
+VT-09 & Proof load: about 30 kg held 2 min; no damage, zero returns within ±200 counts & — & Protocol written (Section~\ref{sec:vt10}) & \nt \\
+VT-10 & Calibration: 4 weighed loads up and down, plus one check weight (Section~\ref{sec:vt10}) & — & Protocol and pass criteria fixed & \nt \\
 VT-11 & Software: 91 Python and 74 TypeScript tests, including parity and a simulated device streaming $-25$ kg (warning shown; Reverse gives +25.0 kg) & 2026-11-23 & 165 of 165 pass at \texttt{51e9189} & Pass (\swt) \\
 \bottomrule
 \end{longtable}
 \end{small}
 
-\subsection{VT-10: calibration and check-load protocol (fixed before testing)}\label{sec:vt10}
+\subsection{VT-09 and VT-10: one 20-minute session (fixed before testing)}\label{sec:vt10}
 
-\paragraph{Set-up.} Device inverted with the palm bar down, frame resting on two wooden blocks by its arms (never clamped), a 25 mm strap over the finger bar's back face at middle-finger height touching nothing else, hanger below. Logger started once for the whole session. Direction check first: a squeeze and a small hung mass must both give positive \texttt{net}.
+\textbf{VT-09} shows the printed frame survives the load. \textbf{VT-10} measures the counts-per-kg factor and checks it on a weight the fit never sees. Both come from one logger recording.
 
-\paragraph{Loading.} Every plate and the hanger weighed on a laboratory scale. Six levels (empty hanger, then 10, 25, 45, 55 and 65 lb of plates plus hanger), ascending then descending, at least two runs (three preferred), 10 s settling per step. The 35 lb plate is applied alone as a check load and is never used in the fit. Total load never exceeds 34 kg (75 lb).
+\paragraph{Set-up.} Weigh the hanger and plates. Device upside down (palm bar down) resting on two blocks, strap over the finger bar only, logger running for the whole session.
 
-\paragraph{Analysis.} Least-squares line of \texttt{net} against weighed mass (\texttt{software/calibrate.py}), with a curvature check.
+\paragraph{Sequence.} Nothing hung (30 s) $\rightarrow$ hanger $\rightarrow$ +10 $\rightarrow$ +25 $\rightarrow$ +45 $\rightarrow$ +65 lb, \textbf{held 2 min} (VT-09) $\rightarrow$ back down +45, +25, +10, hanger $\rightarrow$ nothing (30 s) $\rightarrow$ the 35 lb plate alone as the check weight. About 20 s per step. Total under 34 kg.
+
+\paragraph{Analysis.} \texttt{software/calibrate.py} fits a straight line of \texttt{net} against weighed mass.
 
 \begin{table}[H]
 \centering\small
-\caption{VT-10 acceptance criteria}
+\caption{VT-09 and VT-10 pass criteria}
 \begin{tabularx}{\linewidth}{@{}p{0.8cm}P{4.4cm}L@{}}
 \toprule
-\# & Quantity & Criterion \\
+\# & Quantity & Pass \\
 \midrule
-C1 & Fitted sensitivity & Within ±30\,\% of the datasheet 42\,952 counts/kg (sanity bound) \\
-C2 & Calibrated range & 0 to at least 30 kg \\
-C3 & Check-load error & Proposed: $\leq$ 2\,\% of reading (to be approved before testing) \\
-C4–C6 & Non-linearity, hysteresis, repeatability & Reported as \% of calibrated range \\
-C7 & Curvature & Straight line adequate \\
-C8 & Zero return after load & Within ±200 counts \\
-C9, C10 & Creep (5 min), rest noise (1 s.d.) & Reported \\
+C1 & Counts per kg & Within ±30\,\% of the datasheet 42\,952 (sanity check) \\
+C2 & Range covered & At least 30 kg \\
+C3 & Check-weight error & $\leq$ 2\,\% \\
+C4 & Zero return after unloading & Within ±200 counts \\
+C5 & Frame at 30 kg for 2 min (VT-09) & No crack, creak or visible bending \\
+C6 & Non-linearity, hysteresis, creep & Reported \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -581,7 +590,7 @@ Further limitations:
 % ------------------------------------------------------------------ 11
 \section{Open issues and next milestone}\label{sec:open}
 
-\paragraph{Next milestone: calibration and check-load verification of v4.2.} Complete when VT-08 and VT-09 pass, VT-10 meets C1–C8 with raw CSV files and the analysis commit recorded, the fitted sensitivity is committed to the firmware, and uncertainty is stated following the GUM [3].
+\paragraph{Next milestone: the VT-09/VT-10 session.} Done when C1–C5 pass on one logger recording, the fitted counts per kg is in the firmware, and the uncertainty is stated following the GUM [3].
 
 \begin{table}[H]
 \centering\small
@@ -653,33 +662,23 @@ Public application & gripcheck.vercel.app \\
 
 \section{Figure and media list}
 
-Photographs still to be taken. Shoot on a plain background in daylight, include a ruler where size matters, and record the date in the file name (\texttt{YYYY-MM-DD\_name.jpg}).
-
-\begin{center}\small
-\begin{tabularx}{\linewidth}{@{}p{0.8cm}LP{3.2cm}@{}}
-\toprule
-ID & Content & Used in \\
-\midrule
-P1 & v4.2 as built, three-quarter view, ruler in frame & Section 3 \\
-P2 & Device held in the ASHT position, side-on & Section 3 \\
-P3 & VT-10 rig, wide shot and strap close-up & Section 8 \\
-P4 & Cell guard removed: air gap around the cell, paper slid through the gap & VT-08, R3 \\
-P5 & Electronics pod open: Nano, HX711, cable routing & Section 3, H9 \\
-P6 & Printed parts laid out before assembly, with calipers on one inspection feature & VT-08 \\
-P7 & v3 assembled reference build & Section 6 \\
-P8 & Live reading in GripCheck during a real squeeze (screen capture) & VT-06 \\
-\bottomrule
-\end{tabularx}
-\end{center}
-
-\paragraph{Supplementary video V1} (\textit{[link]}). 60–90 s demonstration: device overview, squeeze in the ASHT position with the live force trace, return to zero on release, the five handle settings, and a hung-mass check during calibration.
-
 \begin{figure}[H]
 \centering
-\photoplaceholder{P4}{3.6cm}{Cell guard removed: the air gap around the load cell, with a sheet of paper slid through to show nothing touches.}\\[6pt]
-\photoplaceholder{P5}{3.6cm}{Electronics pod open: Nano, HX711 and the load-cell cable route.}
-\caption{Inspection photographs to be added.}
+\begin{minipage}[t]{0.32\linewidth}\centering
+  \includegraphics[height=6.2cm]{photo_assembly_cell.jpg}\\[-1pt]{\small (a) Load cell bolted into the frame}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.32\linewidth}\centering
+  \includegraphics[height=6.2cm]{photo_assembly_parts.jpg}\\[-1pt]{\small (b) Frame, palm bar and covers}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.32\linewidth}\centering
+  \includegraphics[height=6.2cm]{photo_device_back.jpg}\\[-1pt]{\small (c) Assembled, frame side}
+\end{minipage}
+\caption{Assembly of the v4.2 device, November 2026.}
 \end{figure}
+
+\noindent Still to add: P3, the VT-09/VT-10 rig; a photo of the open electronics pod; and a screen capture of a live squeeze.
+
+\paragraph{Supplementary video V1} (\textit{[link]}). 60–90 s: the device in the hand, a squeeze with the live force trace, return to zero, the five handle settings, and a hung weight during calibration.
 
 % ------------------------------------------------------------------ references
 \section*{References}
