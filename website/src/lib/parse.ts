@@ -41,6 +41,43 @@ export function parseCalibrationComment(line: string): "measured" | "estimated" 
   return m ? (m[1].toLowerCase() as "measured" | "estimated") : null;
 }
 
+/** The firmware's four columns, or null for anything else (simulator lines have no raw/net). */
+export function parseFirmwareLine(line: string): { t: number; raw: number; net: number; kg: number } | null {
+  if (parseLine(line) === null) return null;
+  const parts = line.split(",").map((s) => s.trim());
+  if (parts.length !== 4) return null;
+  const [t, raw, net, kg] = parts.map(Number);
+  return [t, raw, net, kg].every(Number.isFinite) ? { t, raw, net, kg } : null;
+}
+
+/** What the firmware says about itself in its "#" lines (v1.1 and later print all of these). */
+export interface DeviceInfo {
+  firmware: string | null;
+  countsPerKg: number | null;
+  sign: 1 | -1 | null;
+  calibration: "measured" | "estimated" | null;
+  /** "YYYY-MM-DD" of a saved calibration, if the firmware stored one. */
+  calibratedOn: string | null;
+}
+
+export const emptyDeviceInfo = (): DeviceInfo => ({ firmware: null, countsPerKg: null, sign: null, calibration: null, calibratedOn: null });
+
+/** Read one "#" line into the matching DeviceInfo fields. Returns only what the line tells. */
+export function parseDeviceInfo(line: string): Partial<DeviceInfo> {
+  const s = line.trim();
+  if (!s.startsWith("#")) return {};
+  let m: RegExpExecArray | null;
+  if ((m = /^#\s*hand_dynamometer_v([\w.]+)/i.exec(s))) return { firmware: m[1] };
+  if ((m = /^#\s*counts_per_kg\s*=\s*([\d.]+)/i.exec(s))) return { countsPerKg: Number(m[1]) };
+  if ((m = /^#\s*sign\s*=\s*([+-]?1)\b/i.exec(s))) return { sign: Number(m[1]) === -1 ? -1 : 1 };
+  const cal = parseCalibrationComment(s);
+  if (cal) {
+    const date = /calibration\s*=\s*measured\s+(\d{4}-\d{2}-\d{2})/i.exec(s);
+    return { calibration: cal, calibratedOn: cal === "measured" && date ? date[1] : null };
+  }
+  return {};
+}
+
 /** Flip the sign of a data line, the same as changing SIGN in the firmware.
  *  Firmware "t_ms,raw,net,force_kg": net and force_kg flip, time and raw stay as they are.
  *  Simulator "t_ms,force_kg": force flips. Comments and anything else come back unchanged. */

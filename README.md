@@ -113,9 +113,11 @@ python webapp.py --device --port COM7   # only if several serial devices are plu
 
 **In the browser (Chrome or Edge):** run `python webapp.py`, or open a deployed GripCheck site, and press **Connect device** on the first screen. The browser reads the device through Web Serial and the server analyses each trial exactly as in the other routes. On a deployed site, nothing has to be installed on the visitor's computer.
 
-**Firmware:** upload `firmware/grip_firmware_tillaart/grip_firmware_tillaart.ino` (Rob Tillaart's HX711 library) or `firmware/grip_firmware/grip_firmware.ino` (Bogdan Necula's). Both print `t_ms,raw,net,force_kg` at 115200 baud and re-zero on `T`.
+**Firmware:** upload `firmware/grip_firmware_tillaart/grip_firmware_tillaart.ino` (Rob Tillaart's HX711 library) or `firmware/grip_firmware/grip_firmware.ino` (Bogdan Necula's). Both print `t_ms,raw,net,force_kg` at 115200 baud and re-zero on `T`. Only the Tillaart sketch (v1.1) can store a calibration from the website.
 
-**Calibration status (2026-11-12): estimated.** `COUNTS_PER_KG = 42952` comes from the load-cell datasheet (about ±10 %), not from known masses. The app and every report say so in a banner. After the known-mass calibration (`docs/04_calibration.md`), paste the fitted value into the firmware and set `CALIBRATION = "measured"` in `grip_test.py` (or `GRIPCHECK_CALIBRATION=measured`); the banner then disappears.
+**Calibration status (2026-11-23): estimated.** The firmware starts from the datasheet value of 42,952 counts/kg (about ±10 %), not from known masses, and the app and every report say so in a banner.
+
+**Calibrate from the website (firmware v1.1).** Open the **Calibrate** page on [gripcheck.vercel.app](https://gripcheck.vercel.app/calibrate) in Chrome or Edge, connect the device, and follow the steps: squeeze to check the direction (it can fix a backwards cell on the device), zero, hang one to four weighed masses, check on one more, then **Save to device**. The counts per kg and the date are stored in the Nano's EEPROM, the firmware then reports `# calibration=measured YYYY-MM-DD`, and the estimated-calibration banner goes away. Download the calibration record (CSV) it offers: it holds every reading behind the number. The firmware also takes the commands directly over serial (`C <counts_per_kg> [YYYYMMDD]`, `S <1|-1>`, `R`, `I`; see the top of the sketch). The Python app's `CALIBRATION` flag in `grip_test.py` is separate and still has to be set by hand.
 
 **Sample rate:** the HX711 runs at 10 samples/s until its RATE pin is tied high (80 samples/s). At 10 Hz everything works except rate of force development, which is reported as n/a.
 

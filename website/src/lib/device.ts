@@ -2,7 +2,7 @@
 // Firmware facts: 115200 baud, prints "t_ms,raw,net,force_kg", re-zeroes on "T" and replies "# tared".
 // Opening the port restarts the Nano, which tares itself on boot, so we wait for its first data line.
 
-import { NEGATIVE_WARN_KG, parseCalibrationComment, parseLine, reverseLine } from "./parse";
+import { emptyDeviceInfo, NEGATIVE_WARN_KG, parseCalibrationComment, parseDeviceInfo, parseLine, reverseLine, type DeviceInfo } from "./parse";
 import { BAUD } from "./protocol";
 
 export const serialSupported = () => typeof navigator !== "undefined" && "serial" in navigator;
@@ -39,6 +39,10 @@ export class GripDevice {
   private closed = false;
   /** Set by the firmware's "# calibration=..." boot comment, if we saw it. */
   calibration: "measured" | "estimated" | null = null;
+  /** Everything the firmware has said about itself (version, counts per kg, sign); v1.1 and later. */
+  info: DeviceInfo = emptyDeviceInfo();
+  /** Listeners that get each line before the browser-side reverse (the device's own sign). */
+  private rawListeners = new Set<LineListener>();
   /** Called once if the cable is pulled or the port fails. */
   onLost: (() => void) | null = null;
   lastForceKg = 0;
@@ -104,6 +108,9 @@ export class GripDevice {
   private handleLine(rawLine: string) {
     const cal = parseCalibrationComment(rawLine);
     if (cal) this.calibration = cal;
+    const info = parseDeviceInfo(rawLine);
+    if (Object.keys(info).length) this.info = { ...this.info, ...info };
+    for (const fn of this.rawListeners) fn(rawLine);
     // every listener (live graph, recording, saved CSV) sees the corrected line
     const line = this.reversedFlag ? reverseLine(rawLine) : rawLine;
     const p = parseLine(line);
@@ -129,6 +136,59 @@ export class GripDevice {
   subscribe(fn: LineListener): () => void {
     this.listeners.add(fn);
     return () => this.listeners.delete(fn);
+  }
+
+  /** Listen to every line as the device sent it, before the browser-side reverse. */
+  subscribeRaw(fn: LineListener): () => void {
+    this.rawListeners.add(fn);
+    return () => this.rawListeners.delete(fn);
+  }
+
+  /** Send a command and wait for the firmware's "# saved ..." or "# error ..." reply. */
+  private async command(text: string, okPrefix: string, timeoutMs = 4000): Promise<{ ok: boolean; reply: string | null }> {
+    let reply: string | null = null;
+    const got = this.waitFor((line) => {
+      if (line.startsWith(okPrefix) || line.startsWith("# error")) {
+        reply = line;
+        return true;
+      }
+      return false;
+    }, timeoutMs);
+    await this.send(text);
+    const seen = await got;
+    const r = reply as string | null;
+    return { ok: seen && r !== null && r.startsWith(okPrefix), reply: r };
+  }
+
+  /** Ask the firmware to print its settings. False means it is older than v1.1 (no Calibrate support). */
+  async requestInfo(): Promise<boolean> {
+    const got = this.waitFor((line) => /^#\s*counts_per_kg\s*=/.test(line), 2500);
+    await this.send("I");
+    return got;
+  }
+
+  /** Store a measured counts-per-kg in the device (EEPROM). Needs firmware v1.1. */
+  async saveCalibration(countsPerKg: number, yyyymmdd: string) {
+    const res = await this.command(`C ${countsPerKg.toFixed(1)} ${yyyymmdd}\n`, "# saved counts_per_kg");
+    if (res.ok) await this.waitFor((line) => line.startsWith("# calibration="), 1500);
+    return res;
+  }
+
+  /** Store the direction in the device, so a squeeze reads positive without the browser-side reverse. */
+  async saveSign(sign: 1 | -1) {
+    const res = await this.command(`S ${sign}\n`, "# saved sign");
+    if (res.ok) {
+      this.info = { ...this.info, sign };
+      this.negativeSeen = false;
+    }
+    return res;
+  }
+
+  /** Back to the datasheet estimate and the default sign. */
+  async resetCalibration() {
+    const res = await this.command("R\n", "# saved defaults");
+    if (res.ok) await this.waitFor((line) => line.startsWith("# calibration="), 1500);
+    return res;
   }
 
   /** Resolve true when a line matches, false after the timeout. */

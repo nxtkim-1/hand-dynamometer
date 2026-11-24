@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { Route, Routes, useLocation } from "react-router-dom";
 import { DeviceProvider } from "./components/DeviceContext";
 import { Footer, Header } from "./components/Layout";
+import CalibratePage from "./pages/CalibratePage";
 import HomePage from "./pages/HomePage";
 import HowItWorksPage from "./pages/HowItWorksPage";
 import NotFoundPage from "./pages/NotFoundPage";
@@ -14,6 +15,7 @@ const TITLES: Record<string, string> = {
   "/test": "Grip test · GripCheck",
   "/results": "Results · GripCheck",
   "/how-it-works": "How it works · GripCheck",
+  "/calibrate": "Calibrate · GripCheck",
 };
 
 function ScrollAndTitle() {
@@ -41,6 +43,7 @@ export default function App() {
           <Route path="/results" element={<ResultsPage />} />
           <Route path="/results/:id" element={<ReportPage />} />
           <Route path="/how-it-works" element={<HowItWorksPage />} />
+          <Route path="/calibrate" element={<CalibratePage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </main>
