@@ -14,6 +14,33 @@ A low-cost, 3D-printed grip strength dynamometer built around a load cell, an HX
 
 ---
 
+## Architecture
+
+The constraint this project is built around: **every gram of force travels through one mechanical load path, and every number on screen traces back to a saved raw sample.**
+
+```mermaid
+%%{init: {"theme": "base", "themeVariables": {"primaryColor": "#f2f5ff", "primaryBorderColor": "#445566", "primaryTextColor": "#111111", "lineColor": "#333333", "fontSize": "15px"}}}%%
+flowchart TD
+  L["Load cell"] --> H["HX711 amplifier"] --> N["Nano firmware v1.1"]
+  N -- "USB serial" --> F["Analysis core<br/>webapp.py / grip_test.py"]
+  N -- "Web Serial" --> B["Browser pages"]
+  B -- "trial upload" --> F
+  F --> FIL["Filtering"] --> M["Metrics"]
+  M --> Q["Quality check"]
+  M --> G["Norms comparison"] --> R["Report (HTML/PDF)"]
+  F --> SESS[("Saved sessions")]
+  CAL["Calibrate page"] -. "scale + sign in EEPROM" .-> N
+  linkStyle default stroke:#333333,stroke-width:1.5px,color:#111111
+```
+
+1. The Nano reads the HX711 and prints one line per sample. `force_kg = net / counts_per_kg`, where `counts_per_kg` is the datasheet estimate (about +/-10%) until a measured calibration is saved; the start-up lines announce which, and every report carries the same banner.
+2. The app reaches the device two ways: the server reads it over USB (`python webapp.py --device`), or the visitor's browser reads it over Web Serial and uploads each trial. The public demo (`GRIPCHECK_DEMO=1`) simulates every squeeze instead. All three routes run the same protocol, metrics and report code.
+3. Each recording's real sample rate is measured, metrics are computed on a zero-phase filtered curve, and the raw signal is saved unchanged.
+4. Rate of force development is reported as n/a below 40 Hz sampling rather than estimated from too few samples (the HX711 runs at 10 Hz until its RATE pin is tied high).
+5. The best of three trials per hand is compared with Dodds et al. (2014) norms; clinical cut-offs are reported only for users aged 65 and over.
+
+Design decisions, verification status and what is not yet measured: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
 ## Hardware
 
 A handheld grip-strength instrument built around a **CZL601 100 kg load cell**, an **HX711** amplifier, and an **Arduino Nano**. Calibration uses known masses through the same load path as a real squeeze.
