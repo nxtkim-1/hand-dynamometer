@@ -10,6 +10,7 @@ const LINKS = [
   { to: "/", label: "Project", end: true },
   { to: "/test", label: "Grip test" },
   { to: "/results", label: "Results" },
+  { to: "/calibrate", label: "Calibrate" },
   { to: "/how-it-works", label: "How it works" },
 ];
 
