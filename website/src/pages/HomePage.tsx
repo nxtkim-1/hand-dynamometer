@@ -58,7 +58,7 @@ export default function HomePage() {
 // ---------------------------------------------------------------- hero
 
 function Hero() {
-  const [heroMode, setHeroMode] = useState<"photo" | "cad" | "curve">("photo");
+  const [heroMode, setHeroMode] = useState<"photo" | "cad" | "curve">("cad");
   const [heroDesign, setHeroDesign] = useState<CadDesignId>(MAIN_DESIGN);
 
   return (
@@ -109,20 +109,20 @@ function Hero() {
               <button
                 type="button"
                 role="tab"
-                aria-selected={heroMode === "photo"}
-                className={`pill-tab${heroMode === "photo" ? " active" : ""}`}
-                onClick={() => setHeroMode("photo")}
-              >
-                Photo
-              </button>
-              <button
-                type="button"
-                role="tab"
                 aria-selected={heroMode === "cad"}
                 className={`pill-tab${heroMode === "cad" ? " active" : ""}`}
                 onClick={() => setHeroMode("cad")}
               >
                 3D CAD
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={heroMode === "photo"}
+                className={`pill-tab${heroMode === "photo" ? " active" : ""}`}
+                onClick={() => setHeroMode("photo")}
+              >
+                Photo
               </button>
               <button
                 type="button"
