@@ -1,4 +1,4 @@
-% GripCheck design and verification report, GC-TR-002 Rev 1.0
+% GripCheck design and verification report, GC-TR-002 Rev 1.1
 % Build:  tectonic gripcheck_report.tex      (or upload this folder to Overleaf, compiler XeLaTeX)
 \documentclass[10pt,a4paper]{article}
 
@@ -43,7 +43,7 @@
 \titlespacing*{\subsection}{0pt}{8pt}{3pt}
 
 \newcommand{\docno}{GC-TR-002}
-\newcommand{\docrev}{Rev.\ 1.0}
+\newcommand{\docrev}{Rev.\ 1.1}
 \pagestyle{fancy}
 \fancyhf{}
 \fancyhead[L]{\small\sffamily GripCheck Design and Verification Report}
@@ -77,16 +77,16 @@
   {\LARGE\bfseries GripCheck: A Low-Cost Load-Cell Grip Dynamometer\\[2pt] with Force-Time Analysis}\\[8pt]
   {\large Design and Verification Report}\\[10pt]
   Thomas Kim · Samuel Koo\\
-  University of Waterloo · 23 November 2026
+  University of Waterloo · 25 November 2026
 \end{center}
 
 \vspace{6pt}
 \noindent
 \begin{tabularx}{\linewidth}{@{}>{\bfseries}p{3.6cm}L>{\bfseries}p{3.2cm}L@{}}
 \toprule
-Document number & \docno & Revision & 1.0 \\
-Hardware & v4.2 Jamar-style, as printed (v3 reference build) & Firmware & v1.0; \texttt{SIGN = +1} change pending verification \\
-Software & Commit \texttt{51e9189} & Status & Verification in progress \\
+Document number & \docno & Revision & 1.1 \\
+Hardware & v4.2 Jamar-style, as printed (v3 reference build) & Firmware & v1.1 (calibration and sign stored in EEPROM); not yet uploaded to the device \\
+Software & Commit \texttt{713e793} & Status & Verification in progress \\
 Classification & Educational prototype; no regulatory claim & Supersedes & GC-TR-002 Rev.\ 0.9 \\
 \bottomrule
 \end{tabularx}
@@ -113,12 +113,13 @@ Rev. & Date & Change \\
 \midrule
 0.9 & 2026-11-23 & Draft status report for the v3 hardware. \\
 1.0 & 2026-11-23 & Restructured as a design and verification report. Adds the v4.2 Jamar-style design, its CAD verification and first device findings; risk summary; standards assessment; verification records under test IDs; photographs of the built device; a single 20-minute VT-09/VT-10 session. \\
+1.1 & 2026-11-25 & Firmware v1.1 (counts per kg, sign and calibration date stored in EEPROM, set over serial) and the website Calibrate page that writes them to the device; software test count and open issues updated. VT-09 and VT-10 still not tested. \\
 \bottomrule
 \end{tabularx}
 
 \vspace{10pt}
 \begin{abstract}
-\noindent Clinical grip dynamometers such as the Jamar report only peak force, which discards how quickly force rises and how well it is held. GripCheck is a handheld dynamometer in which all squeeze force passes through a single 100 kg single-point load cell, read by an HX711 24-bit converter and an Arduino Nano, and analysed in a browser or desktop application that administers a standardised protocol and reports peak force, time to peak, rate of force development (RFD) and fatigue index against published norms. The design has passed through four iterations. The current v4.2 Jamar-style frame, with five keyed handle settings, passes 53 of 53 automated geometry checks and has been printed and assembled. The signal chain has been demonstrated on hardware, rest noise is about ±70 counts (about 2 g), and 165 of 165 automated software tests pass. The device has not yet been calibrated against weighed masses, so its accuracy and usable range are unverified. Calibration with a held-out check load is the next milestone, and its protocol and acceptance criteria are fixed in this report before testing.
+\noindent Clinical grip dynamometers such as the Jamar report only peak force, which discards how quickly force rises and how well it is held. GripCheck is a handheld dynamometer in which all squeeze force passes through a single 100 kg single-point load cell, read by an HX711 24-bit converter and an Arduino Nano, and analysed in a browser or desktop application that administers a standardised protocol and reports peak force, time to peak, rate of force development (RFD) and fatigue index against published norms. The design has passed through four iterations. The current v4.2 Jamar-style frame, with five keyed handle settings, passes 53 of 53 automated geometry checks and has been printed and assembled. The signal chain has been demonstrated on hardware, rest noise is about ±70 counts (about 2 g), and 179 of 179 automated software tests pass. Firmware v1.1 and a Calibrate page on the website let a user calibrate the device with weighed masses and save the result in it. The device has not yet been calibrated against weighed masses, so its accuracy and usable range are unverified. Calibration with a held-out check load is the next milestone, and its protocol and acceptance criteria are fixed in this report before testing.
 \end{abstract}
 
 \noindent\textbf{Index terms:} force-time curve, grip strength, HX711, load cell, rate of force development, design verification.
@@ -129,9 +130,9 @@ Rev. & Date & Change \\
 (1) Signal chain demonstrated end to end on hardware [\meas].
 (2) v4.2 frame: 0.0000\,mm$^3$ interference across 10 part pairs, 17.1\,mm of free finger travel before any contact, and a keyed palm seat that carries the load at all five settings after 0.35\,mm [\cadan].
 (3) A sign nonconformance on the first v4.2 squeeze was found, explained and controlled the same day.
-(4) 165 of 165 software tests pass, including Python–TypeScript parity [\swt].
-(5) Zero-phase filtering did not reduce RFD error in 300 simulated trials [\simul].
-(6) Estimated parts cost CAD\,89.
+(4) 179 of 179 software tests pass, including Python–TypeScript parity [\swt]. (5) A website Calibrate page fits counts per kg from weighed masses and saves it in the device's EEPROM (firmware v1.1) [\simul: recovered 42\,299.8 of a true 42\,300 counts/kg].
+(6) Zero-phase filtering did not reduce RFD error in 300 simulated trials [\simul].
+(7) Estimated parts cost CAD\,89.
 \textbf{Force accuracy: not yet tested.}}}
 
 \newpage
@@ -219,7 +220,7 @@ Does a squeeze read positive on v4.2? & Reads negative with \texttt{SIGN = -1} (
 Can force bypass the cell on v4.2? & Interference and free-travel checks (VT-05) & \cadan & Gap inspection on the assembled part \\
 Is force measured accurately? & Datasheet scale factor only & \nt & VT-10 calibration and check load \\
 Do the printed parts hold the load? & None & \nt & VT-09 proof load \\
-Is the analysis computed as defined? & 165 automated tests (VT-11) & \swt & Faulty-trial end-to-end tests \\
+Is the analysis computed as defined? & 179 automated tests (VT-11) & \swt & Faulty-trial end-to-end tests \\
 Are real faulty trials detected? & Classifier on synthetic curves & \simul & Labelled device recordings \\
 \bottomrule
 \end{tabularx}
@@ -419,7 +420,7 @@ ID & Hazard (cause) & Sev. & Control & Verification \\
 H1 & Printed part fractures under load (PETG strength unknown; no FEA) & 3 & 34 kg limit; staged proof load before maximal squeezes; stop at the first crack or creak & VT-09 (open) \\
 H2 & Finger pinched between moving and fixed parts & 2 & Cell guard; 3.2 mm air gap; free-travel check & VT-05 [\cadan] \\
 H3 & Force bypasses the cell (contact, cable, strap) & 2 & Air gap on every face; strap on the finger bar only & VT-05 [\cadan]; inspection open \\
-H4 & Wrong sign hides force (frame bends the cell the other way) & 2 & Direction check before use; warning below $-2$ kg with a Reverse control & VT-06 finding; VT-11 [\swt] \\
+H4 & Wrong sign hides force (frame bends the cell the other way) & 2 & Direction check before use; warning below $-2$ kg with a Reverse control; the Calibrate page saves the correct sign in the device (v1.1) & VT-06 finding; VT-11, VT-12 [\swt, \simul] \\
 H5 & Uncalibrated force trusted (datasheet factor, about ±10\,\%) & 2 & Banner on every device result; the word ``calibrated'' withheld & VT-11 [\swt] \\
 H6 & Re-zero under load (Nano resets when the port opens) & 2 & Logger started once per session; restart detection & VT-11 [\simul] \\
 H7 & Electric shock & 1 & USB 5 V only; enclosed electronics & R7 continuity (open) \\
@@ -455,7 +456,8 @@ VT-07 & v4.2 informal check loads & 2026-11-23 & Readings reported to agree with
 VT-08 & Printed-part inspection: 13 features against accept ranges & — & Inspection sheet prepared & \nt \\
 VT-09 & Proof load: about 30 kg held 2 min; no damage, zero returns within ±200 counts & — & Protocol written (Section~\ref{sec:vt10}) & \nt \\
 VT-10 & Calibration: 4 weighed loads up and down, plus one check weight (Section~\ref{sec:vt10}) & — & Protocol and pass criteria fixed & \nt \\
-VT-11 & Software: 91 Python and 74 TypeScript tests, including parity and a simulated device streaming $-25$ kg (warning shown; Reverse gives +25.0 kg) & 2026-11-23 & 165 of 165 pass at \texttt{51e9189} & Pass (\swt) \\
+VT-11 & Software: 91 Python and 88 TypeScript tests, including parity, a simulated device streaming $-25$ kg (warning shown; Reverse gives +25.0 kg) and the calibration arithmetic & 2026-11-23 & 179 of 179 pass at \texttt{713e793} & Pass (\swt) \\
+VT-12 & Calibrate page against a simulated v1.1 device mounted backwards, true 42\,300 counts/kg: direction fixed on the device, 3 weights and a check weight, saved over serial & 2026-11-23 & Saved 42\,299.8 counts/kg; check weight $+0.00$\,\%; no page errors & Pass (\simul) \\
 \bottomrule
 \end{longtable}
 \end{small}
@@ -468,7 +470,7 @@ VT-11 & Software: 91 Python and 74 TypeScript tests, including parity and a simu
 
 \paragraph{Sequence.} Nothing hung (30 s) $\rightarrow$ hanger $\rightarrow$ +10 $\rightarrow$ +25 $\rightarrow$ +45 $\rightarrow$ +65 lb, \textbf{held 2 min} (VT-09) $\rightarrow$ back down +45, +25, +10, hanger $\rightarrow$ nothing (30 s) $\rightarrow$ the 35 lb plate alone as the check weight. About 20 s per step. Total under 34 kg.
 
-\paragraph{Analysis.} \texttt{software/calibrate.py} fits a straight line of \texttt{net} against weighed mass.
+\paragraph{Analysis.} \texttt{software/calibrate.py} fits a straight line of \texttt{net} against weighed mass. The website's Calibrate page applies the same least-squares fit, captures a weight only once the reading is steady, and writes the result to the device (firmware v1.1, command \texttt{C}); its downloadable CSV record keeps every reading.
 
 \begin{table}[H]
 \centering\small
@@ -512,7 +514,7 @@ No measurement-performance result exists yet: sensitivity, range, non-linearity,
 \paragraph{Sign on v4.2.} The same cell and firmware that read positive in the v3 barrel read negative in the v4.2 frame, because the two frames bend the cell in opposite directions. Requirement R6 (calibration along the squeeze path) exists for exactly this reason: the load path, not the sensor, sets the sign.
 
 \subsection{Software}
-All 165 automated tests pass at commit \texttt{51e9189}: 91 Python (metrics against curves with known answers, zero-phase filtering, both input formats, end-to-end protocol against a simulated serial device, calibration fitting and stream checks on a simulated cell) and 74 TypeScript, including parity with the Python reference and the direction warning. Coverage has one known gap: the simulator selects a fault type but always returns a clean curve, so no faulty trial has yet passed through the system end to end.
+All 179 automated tests pass at commit \texttt{713e793}: 91 Python (metrics against curves with known answers, zero-phase filtering, both input formats, end-to-end protocol against a simulated serial device, calibration fitting and stream checks on a simulated cell) and 88 TypeScript, including parity with the Python reference, the direction warning and the calibration fit, check-weight and steadiness rules used by the Calibrate page. Coverage has one known gap: the simulator selects a fault type but always returns a clean curve, so no faulty trial has yet passed through the system end to end.
 
 \begin{figure}[H]
 \centering
@@ -599,7 +601,7 @@ Further limitations:
 \toprule
 Issue & Status & Closed when & Owner & Due \\
 \midrule
-Sign on v4.2 (VT-06) & Fix made, unverified & Firmware uploaded; squeeze and hung mass both positive & T.\ Kim & \textit{[date]} \\
+Sign on v4.2 (VT-06) & Fix made, unverified & Firmware v1.1 uploaded; squeeze and hung mass both positive (the Calibrate page checks this) & T.\ Kim & \textit{[date]} \\
 Proof load (R10, VT-09) & \nt & All steps pass; no cracks; zero returns & T.\ Kim & \textit{[date]} \\
 Calibration and check load (R1, R2) & \nt & VT-10 complete & T.\ Kim & \textit{[date]} \\
 Measurement evidence for VT-03, VT-07 & Incomplete & Raw logs linked & T.\ Kim & \textit{[date]} \\
@@ -607,7 +609,7 @@ Electrical isolation (R7) & \nt & Open circuit from every grip surface to every 
 Cable length and pod fit & Open & Measured; pod closes without a tight bend & T.\ Kim & \textit{[date]} \\
 80 samples/s acquisition & Not implemented & Logged interval $\leq$ 13 ms; noise re-measured & T.\ Kim & \textit{[date]} \\
 Simulator fault defect & Open & End-to-end test per fault type fails before the fix, passes after & S.\ Koo & \textit{[date]} \\
-Calibration flag in software & Waits on VT-10 & \texttt{CALIBRATION = "measured"} in both applications & S.\ Koo & \textit{[date]} \\
+Calibration flag in software & Website done; Python waits on VT-10 & The website reads the device's saved calibration; \texttt{CALIBRATION = "measured"} still set by hand in \texttt{grip\_test.py} & S.\ Koo & \textit{[date]} \\
 Classifier on real trials & \nt & Confusion matrix on labelled device data & S.\ Koo & \textit{[date]} \\
 Agreement with a Jamar & Not planned in detail & Bland–Altman bias and 95\,\% limits of agreement [2]; ethics question answered first & Both & \textit{[date]} \\
 \bottomrule
@@ -647,7 +649,7 @@ Estimates from supplier listings, to be replaced with receipts. Borrowed tools a
 \toprule
 Item & Location \\
 \midrule
-Repository (code, CAD, firmware, documentation) & github.com/nxtkim-1/hand-dynamometer, commit \texttt{51e9189} \\
+Repository (code, CAD, firmware, documentation) & github.com/nxtkim-1/hand-dynamometer, commit \texttt{713e793} \\
 v4.2 CAD (frozen, as printed) & \texttt{cad/jamar\_v4\_2\_review/} \\
 v4.2 geometry checks (VT-05) & \texttt{python cad/evidence\_v4\_2/check\_v4\_2.py} \\
 Calibration fit (VT-10) & \texttt{python software/calibrate.py data/calibration\_points.csv} \\
